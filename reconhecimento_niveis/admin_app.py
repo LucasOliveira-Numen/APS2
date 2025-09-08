@@ -5,11 +5,12 @@ import os
 import json
 import shutil
 import tkinter as tk
-from tkinter import messagebox, scrolledtext, filedialog
+from tkinter import messagebox, simpledialog, filedialog
 import uuid
 import cv2
 import sys
 import unicodedata
+import time
 
 # Obtenha o caminho absoluto do diretório onde o script está
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -21,12 +22,6 @@ caminho_json_dados_usuario = os.path.join(base_dir, 'userData.json')
 
 # Caminho para o classificador de faces (Haar Cascade)
 face_cascade_path = os.path.join(base_dir, 'haarcascade_frontalface_default.xml')
-# Verifica se o arquivo do classificador existe
-if not os.path.exists(face_cascade_path):
-    messagebox.showerror("Erro", f"O arquivo '{os.path.basename(face_cascade_path)}' não foi encontrado. Por favor, baixe-o e coloque-o na mesma pasta.")
-    sys.exit()
-
-classificador_de_faces = cv2.CascadeClassifier(face_cascade_path)
 
 def carregar_dados_json(caminho_arquivo):
     """
@@ -68,6 +63,12 @@ def adicionar_mais_fotos(cpf):
     if not os.path.exists(caminho_pasta_pessoa):
         messagebox.showerror("Erro", f"Diretório de fotos para o usuário '{cpf}' não encontrado.")
         return
+
+    # Inicia o classificador de faces
+    if not os.path.exists(face_cascade_path):
+        messagebox.showerror("Erro", f"O arquivo '{os.path.basename(face_cascade_path)}' não foi encontrado. Por favor, baixe-o e coloque-o na mesma pasta.")
+        return
+    classificador_de_faces = cv2.CascadeClassifier(face_cascade_path)
 
     captura = cv2.VideoCapture(0)
     if not captura.isOpened():
@@ -178,4 +179,6 @@ def criar_janela_admin():
     janela.mainloop()
 
 if __name__ == "__main__":
+    # Este bloco só será executado se o admin_app.py for executado diretamente
+    # Se for chamado de outro script, as funções serão importadas e usadas
     criar_janela_admin()
