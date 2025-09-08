@@ -1,33 +1,66 @@
 -----Explicação Detalhada do Projeto de Reconhecimento Facial em Python-----
 Este documento explica o funcionamento do projeto de reconhecimento facial, que utiliza a biblioteca OpenCV e uma abordagem baseada em dados de treinamento locais.
 
----Como o Algoritmo Funciona---
-O projeto é dividido em duas etapas principais: Treinamento e Reconhecimento.
+---Visão Geral da Arquitetura---
+O projeto é dividido em três aplicativos principais e arquivos de dados, que trabalham juntos para criar um sistema completo e seguro:
 
+app.py: O script principal que inicia o reconhecimento facial via webcam. É o ponto de entrada do sistema.
 
-1. Etapa de Treinamento (treinar_reconhecedor)
-Esta etapa é crucial para que o modelo aprenda a identificar os rostos. Funciona da seguinte forma:
+document_viewer.py: A interface gráfica que exibe os documentos para usuários autorizados. Para usuários de Nível 3, este painel também se torna a tela de administração.
 
-Coleta de Dados: O script lê o arquivo userData.json para obter os IDs únicos das pessoas. Em seguida, ele percorre a pasta faces e, para cada subpasta (nomeada com o ID único), ele lê as imagens.
+cadastro_app.py: Um aplicativo separado usado para cadastrar novas pessoas no sistema, capturando fotos diretamente da webcam.
+
+Arquivos de Dados (.json): Contêm as informações dos usuários e suas permissões.
+
+---Como o Algoritmo Funciona (app.py)---
+O processo de reconhecimento facial é dividido em duas etapas principais: Treinamento e Reconhecimento.
+
+1. Etapa de Treinamento (função treinar_reconhecedor)
+Esta etapa é crucial para que o modelo aprenda a identificar os rostos.
+
+Coleta de Dados: O script lê o arquivo userData.json para obter os IDs únicos das pessoas. Em seguida, ele percorre a pasta faces e, para cada subpasta (nomeada com o ID único), lê as imagens.
+
 Detecção de Faces: Para cada imagem, o algoritmo cv2.CascadeClassifier é usado para detectar a localização exata de cada rosto. Este classificador é um modelo pré-treinado que identifica padrões de características faciais.
-Processamento de Imagem: Os rostos detectados são convertidos para escala de cinza e redimensionados. Essa padronização é essencial para que o algoritmo de reconhecimento funcione de forma consistente.
-Treinamento do Modelo: O modelo de reconhecimento facial, cv2.face.LBPHFaceRecognizer_create(), é criado. "LBPH" significa "Local Binary Patterns Histograms". Este algoritmo funciona criando um histograma de padrões de pixels para cada rosto e, em seguida, usa esses histogramas para "aprender" a identificar cada pessoa.
-Salvamento do Modelo: Após o treinamento, o modelo está pronto para ser usado na etapa de reconhecimento em tempo real.
 
+Processamento de Imagem: Os rostos detectados são convertidos para escala de cinza e redimensionados para um tamanho padrão. Essa padronização é essencial para que o algoritmo de reconhecimento funcione de forma consistente.
 
-2. Etapa de Reconhecimento (reconhecer_faces_webcam)
+Treinamento do Modelo: O modelo de reconhecimento facial, cv2.face.LBPHFaceRecognizer_create(), é criado e treinado com os dados coletados. O algoritmo LBPH (Local Binary Patterns Histograms) funciona criando um histograma de padrões de pixels para cada rosto, o que o ajuda a "aprender" a identificar cada pessoa.
+
+2. Etapa de Reconhecimento (função reconhecer_faces_webcam)
 Nesta etapa, o modelo treinado é usado para identificar rostos em tempo real a partir da sua webcam.
 
 Captura de Vídeo: O script inicializa a sua webcam e começa a capturar o vídeo, frame a frame.
-Detecção de Faces em Tempo Real: Para cada frame capturado, o mesmo classificador de faces (cv2.CascadeClassifier) é usado para detectar rostos.
-Predição (Reconhecimento): Para cada rosto detectado, o modelo LBPHFaceRecognizer faz uma predição. Ele compara o rosto atual com os rostos que ele aprendeu na etapa de treinamento e retorna duas informações principais:
+
+Predição (Reconhecimento): Para cada rosto detectado, o modelo LBPHFaceRecognizer faz uma predição. Ele compara o rosto atual com os rostos que ele aprendeu e retorna duas informações principais:
+
 ID do Rótulo: Um número que corresponde ao ID único da pessoa mais parecida.
-Confiança: Um valor numérico que indica o quão "confiante" o modelo está em sua predição. Um valor de confiança baixo (próximo de zero) indica uma correspondência forte.
+
+Confiança: Um valor numérico que indica a quão "confiante" o modelo está em sua predição. Um valor baixo (próximo de zero) indica uma correspondência forte.
+
 Exibição de Informações:
-Se a confiança for alta o suficiente (abaixo de 100), o script usa o ID encontrado para buscar no userData.json o nome completo da pessoa.
-Com o nome e o CPF da pessoa em mãos, ele consulta o arquivo validation.json para verificar o nível de acesso e o status de autorização ("Autorizado" ou "Não Autorizado").
-Essas informações são exibidas na tela, sobre o rosto da pessoa, juntamente com uma caixa colorida (verde para autorizado, vermelho para não autorizado).
-Estrutura de Dados (JSON)
-userData.json: Serve como um banco de dados de usuários. A chave principal é o CPF, e o valor é um objeto que contém o nome completo e o ID único da pasta de fotos.
-validation.json: Serve como um arquivo de controle de acesso. As chaves são os níveis de acesso (ex: "Nivel 1"), e o valor é uma lista de CPFs que têm acesso a esse nível.
-Essa separação de dados garante a segurança e a organização do projeto. O CPF é usado como identificador principal para garantir a unicidade, e o ID único é usado para o treinamento do modelo, evitando a exposição de dados pessoais no sistema de arquivos.
+
+Se a confiança for alta, o script usa o ID encontrado para buscar no userData.json o nome completo da pessoa.
+
+Com o CPF da pessoa em mãos, ele consulta o arquivo validation.json para verificar o nível de acesso e o status de autorização.
+
+Essas informações são exibidas na tela da webcam.
+
+---Funcionalidades de Gerenciamento de Usuários (document_viewer.py)---
+A interface de visualização de documentos não serve apenas para exibir os arquivos, mas também se torna um painel de administração para usuários de Nível 3.
+
+Visualização de Documentos: A interface exibe os arquivos em pastas, com base no nível de acesso do usuário. É possível clicar no nome de um arquivo para abrir uma nova janela e visualizar seu conteúdo.
+
+Criação de Usuário: O botão "Criar Novo Usuário" abre uma interface para cadastrar uma nova pessoa, com nome, CPF e nível, e capturar suas fotos via webcam.
+
+Adição de Fotos: O botão "Adicionar Fotos a Usuário" permite que um administrador adicione mais fotos a um perfil existente, melhorando a precisão do reconhecimento.
+
+Exclusão de Usuário: O botão "Excluir Usuário" permite que um administrador remova permanentemente o perfil de um usuário do sistema.
+
+---Estrutura de Dados (JSON)---
+Os arquivos JSON são essenciais para a organização do projeto, garantindo a segurança e a modularidade.
+
+userData.json: Funciona como um banco de dados de usuários. A chave principal é o CPF, e o valor é um objeto que contém o nome completo e o ID único da pasta de fotos.
+
+validation.json: Funciona como um arquivo de controle de acesso. As chaves são os níveis de acesso (ex: "Nivel 1"), e o valor é uma lista de CPFs que têm acesso a esse nível.
+
+Essa separação de dados garante que o CPF seja o identificador principal, mas o ID único seja usado para o treinamento do modelo, evitando a exposição de dados pessoais no sistema de arquivos.

@@ -1,4 +1,7 @@
 # app.py
+# Este é o script principal do projeto de reconhecimento facial.
+# Ele é responsável por treinar o modelo, abrir a webcam e
+# realizar o reconhecimento em tempo real para conceder acesso.
 
 import cv2
 import os
@@ -9,34 +12,39 @@ import unicodedata
 import time
 from document_viewer import mostrar_documentos
 
-# Obtenha o caminho absoluto do diretório onde o script está
+# --- Configurações Iniciais e Verificação de Arquivos ---
+# Obtém o caminho absoluto do diretório onde o script está sendo executado.
+# Isso garante que o projeto funcione em qualquer computador, independente da pasta.
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
-# Configurações do projeto
-# Caminho para o classificador de faces (Haar Cascade)
+# Caminho para o classificador de faces (Haar Cascade).
+# Este arquivo é um modelo pré-treinado para detectar rostos.
 face_cascade_path = os.path.join(base_dir, 'haarcascade_frontalface_default.xml')
-# Verifica se o arquivo do classificador existe
+# Verifica se o arquivo do classificador de faces existe. Se não, o programa é encerrado.
 if not os.path.exists(face_cascade_path):
     print(f"Erro: O arquivo '{os.path.basename(face_cascade_path)}' não foi encontrado. Por favor, baixe-o e coloque-o na mesma pasta do app.py.")
     exit()
 
-# Inicializa o classificador de faces
+# Inicializa o classificador de faces, que será usado para encontrar rostos nas imagens.
 classificador_de_faces = cv2.CascadeClassifier(face_cascade_path)
 
-# Caminho para a pasta de imagens de rostos
+# Caminho para a pasta onde as imagens de rostos para treinamento estão armazenadas.
 diretorio_de_faces = os.path.join(base_dir, 'faces')
-# Caminho para os arquivos de dados
+# Caminho para os arquivos de dados (JSON) que armazenam as informações dos usuários.
 caminho_json_validacao = os.path.join(base_dir, 'validation.json')
 caminho_json_dados_usuario = os.path.join(base_dir, 'userData.json')
 
-# Variável ajustável para a sensibilidade do reconhecimento
+# Variável ajustável para a sensibilidade do reconhecimento.
 # Valores mais baixos tornam o reconhecimento mais rigoroso (menos falsos positivos).
+# O padrão 60 é um bom ponto de partida.
 LIMITE_CONFIANCA = 60
 
+# --- Funções Auxiliares para Manipulação de Dados e Texto ---
 def remover_acentos(texto):
     """
-    Remove acentos e caracteres especiais de uma string para evitar problemas
-    de exibição com a fonte padrão do OpenCV.
+    Remove acentos e caracteres especiais de uma string.
+    Isso é feito para evitar problemas de exibição com a fonte padrão do OpenCV,
+    que pode não suportar caracteres como "á", "ç", "ã", etc.
     """
     try:
         texto = str(texto)
@@ -50,7 +58,7 @@ def remover_acentos(texto):
 def carregar_dados_json(caminho_arquivo):
     """
     Carrega dados de um arquivo JSON.
-    Retorna o dicionário de dados ou None em caso de erro.
+    Esta função verifica se o arquivo existe e trata possíveis erros na leitura.
     """
     if not os.path.exists(caminho_arquivo):
         print(f"Erro: O arquivo {caminho_arquivo} não foi encontrado.")
@@ -62,6 +70,7 @@ def carregar_dados_json(caminho_arquivo):
         print(f"Erro ao carregar o arquivo JSON {caminho_arquivo}: {e}")
         return None
 
+# --- Etapa 1: Treinamento do Modelo ---
 def obter_imagens_e_rotulos(ids_unicos):
     """
     Percorre a pasta de faces, carrega as imagens de cada pessoa,
@@ -69,7 +78,8 @@ def obter_imagens_e_rotulos(ids_unicos):
     """
     faces = []
     ids = []
-    # Mapeia os IDs únicos (nomes das pastas) para IDs numéricos para o treinamento do reconhecedor
+    # Cria um mapeamento de IDs únicos (string) para IDs numéricos.
+    # O reconhecedor de faces do OpenCV precisa de IDs numéricos para o treinamento.
     mapeamento_ids_para_rotulo = {id_unico: i for i, id_unico in enumerate(ids_unicos)}
 
     print("Coletando dados de treinamento...")
@@ -82,21 +92,28 @@ def obter_imagens_e_rotulos(ids_unicos):
         for nome_imagem in os.listdir(diretorio_pessoa):
             caminho_imagem = os.path.join(diretorio_pessoa, nome_imagem)
 
+            # Verifica se o arquivo é uma imagem antes de tentar lê-lo.
             if nome_imagem.lower().endswith(('.jpg', '.png', '.jpeg')):
                 img = cv2.imread(caminho_imagem, cv2.IMREAD_GRAYSCALE)
 
+                # Se a imagem não puder ser lida, um aviso é exibido.
                 if img is None:
                     print(f"Aviso: Não foi possível ler a imagem {caminho_imagem}. Ignorando...")
                     continue
 
+                # Detecta rostos na imagem.
                 rostos_detectados = classificador_de_faces.detectMultiScale(img, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
 
+                # Se nenhum rosto for detectado, um aviso é exibido e a imagem é ignorada.
                 if len(rostos_detectados) == 0:
                     print(f"Aviso: Nenhuma face detectada na imagem {caminho_imagem}. Ignorando...")
                     continue
 
                 for (x, y, w, h) in rostos_detectados:
+                    # Recorta a região de interesse (ROI) do rosto.
                     roi = img[y:y+h, x:x+w]
+                    # Redimensiona a face para um tamanho padrão. Isso resolve o problema de
+                    # "inhomogeneous shape" (forma não homogênea) durante o treinamento.
                     roi_redimensionado = cv2.resize(roi, (200, 200), interpolation=cv2.INTER_LINEAR)
                     faces.append(roi_redimensionado)
                     ids.append(mapeamento_ids_para_rotulo[id_unico])
@@ -105,12 +122,13 @@ def obter_imagens_e_rotulos(ids_unicos):
         print("Erro: Nenhuma face encontrada nas imagens de treinamento. Verifique a pasta 'faces'.")
         return None, None, None
 
+    # Converte as listas para arrays do NumPy, que é o formato exigido pelo OpenCV.
     return np.array(faces), np.array(ids), list(mapeamento_ids_para_rotulo.keys())
 
 def treinar_reconhecedor():
     """
-    Treina o modelo de reconhecimento facial.
-    Retorna o reconhecedor treinado e a lista de IDs únicos correspondente aos IDs.
+    Função principal de treinamento.
+    Carrega os dados de usuário, coleta as imagens e treina o modelo.
     """
     print("Iniciando o treinamento do modelo...")
     dados_usuario = carregar_dados_json(caminho_json_dados_usuario)
@@ -128,11 +146,14 @@ def treinar_reconhecedor():
     if faces is None or ids is None:
         return None, None
 
+    # Cria o modelo de reconhecimento facial.
     reconhecedor = cv2.face.LBPHFaceRecognizer_create()
+    # Treina o modelo com as faces e os IDs coletados.
     reconhecedor.train(faces, ids)
     print("Treinamento concluído com sucesso.")
     return reconhecedor, ids_treinamento
 
+# --- Etapa 2: Reconhecimento em Tempo Real ---
 def obter_nivel_e_status(cpf, dados_validacao):
     """
     Busca o nível e o status de autorização de uma pessoa com base no CPF.
@@ -173,10 +194,11 @@ def reconhecer_faces_webcam(reconhecedor, ids_treinamento, dados_validacao, dado
         for (x, y, w, h) in rostos_detectados:
             roi_cinza = frame_cinza[y:y+h, x:x+w]
 
+            # O modelo faz uma predição no rosto detectado.
             rotulo_id, confianca = reconhecedor.predict(roi_cinza)
 
-            # Condição de confiança para identificar a pessoa
-            # Agora usa a variável ajustável LIMITE_CONFIANCA
+            # Verifica se a confiança é alta o suficiente para um reconhecimento.
+            # Um valor menor indica maior semelhança.
             if confianca < LIMITE_CONFIANCA and rotulo_id < len(ids_treinamento):
                 id_unico_encontrado = ids_treinamento[rotulo_id]
 
