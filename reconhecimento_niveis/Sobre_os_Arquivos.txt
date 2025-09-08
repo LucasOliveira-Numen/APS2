@@ -1,0 +1,16 @@
+Arquivos do Projeto
+app.py
+Este é o coração do seu sistema. Ele lida com o reconhecimento facial em tempo real, verifica o nível de acesso do usuário e, após a autenticação, chama a interface de visualização de documentos.
+Ele também contém a lógica de treinamento do modelo e a remoção de acentos nos nomes para evitar erros de exibição.
+
+cadastro_app.py
+Este aplicativo é dedicado ao cadastro de novos usuários.
+A interface permite que você insira o nome, CPF e nível, e em seguida, captura fotos diretamente da webcam, salvando-as de forma organizada para o treinamento do modelo.
+
+document_viewer.py
+Este arquivo é a interface do usuário. Ele exibe os documentos com base no nível de acesso do usuário.
+Para usuários de Nível 3, ele também mostra os botões para as funções de administração, como criar, excluir ou adicionar fotos a usuários.
+
+admin_app.py
+Este script é o painel de administração que permite que usuários de Nível 3 gerenciem os dados.
+É importante notar que ele só deve ser executado pelo app.py para garantir a segurança.

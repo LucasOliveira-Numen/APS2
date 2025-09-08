@@ -11,6 +11,7 @@ import shutil
 import cv2
 import uuid
 import unicodedata
+import subprocess
 
 # Obtenha o caminho base do projeto
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -270,6 +271,29 @@ def excluir_usuario():
         messagebox.showerror("Erro", f"Ocorreu um erro ao excluir o usuário: {e}")
 
 
+def abrir_arquivo(caminho_arquivo):
+    """
+    Abre uma nova janela para exibir o conteúdo de um arquivo de texto.
+    """
+    janela_arquivo = tk.Toplevel()
+    janela_arquivo.title(os.path.basename(caminho_arquivo))
+    janela_arquivo.geometry("500x400")
+
+    try:
+        with open(caminho_arquivo, 'r', encoding='utf-8') as f:
+            conteudo = f.read()
+    except Exception as e:
+        conteudo = f"Erro ao ler o arquivo: {e}"
+
+    texto_arquivo = scrolledtext.ScrolledText(janela_arquivo, wrap=tk.WORD, padx=10, pady=10)
+    texto_arquivo.pack(fill=tk.BOTH, expand=True)
+    texto_arquivo.insert(tk.END, conteudo)
+    texto_arquivo.configure(state='disabled')
+
+    btn_fechar = tk.Button(janela_arquivo, text="Fechar", command=janela_arquivo.destroy)
+    btn_fechar.pack(pady=10)
+
+
 def mostrar_documentos(nivel_acesso):
     """
     Cria a interface gráfica para exibir documentos e, para usuários de Nível 3,
@@ -298,32 +322,55 @@ def mostrar_documentos(nivel_acesso):
     frame_principal = tk.Frame(janela, padx=10, pady=10)
     frame_principal.pack(fill=tk.BOTH, expand=True)
 
-    titulo = tk.Label(frame_principal, text=f"Bem-vindo! Documentos do Nível {nivel_acesso[-1]}", font=("Helvetica", 16))
+    # Título personalizado
+    titulos = {
+        "Nivel 1": "Bem-vindo!",
+        "Nivel 2": "Bem-vindo Diretor(a)!",
+        "Nivel 3": "Bem-vindo Ministro(a)!"
+    }
+    titulo = tk.Label(frame_principal, text=titulos.get(nivel_acesso, "Bem-vindo!"), font=("Helvetica", 16))
     titulo.pack(pady=10)
 
+
     # Exibe os arquivos em um campo de texto rolável
-    lista_arquivos = scrolledtext.ScrolledText(frame_principal, wrap=tk.WORD, width=60, height=15)
-    lista_arquivos.pack(pady=10, fill=tk.BOTH, expand=True)
+    canvas = tk.Canvas(frame_principal, width=500, height=250)
+    scrollbar = tk.Scrollbar(frame_principal, orient="vertical", command=canvas.yview)
+    scrollable_frame = tk.Frame(canvas)
+
+    scrollable_frame.bind(
+        "<Configure>",
+        lambda e: canvas.configure(
+            scrollregion=canvas.bbox("all")
+        )
+    )
+
+    canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+    canvas.configure(yscrollcommand=scrollbar.set)
+    canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
     arquivos_encontrados = False
     for pasta in pastas_acesso:
         caminho_pasta = os.path.join(documentos_dir, pasta)
         if os.path.exists(caminho_pasta):
-            lista_arquivos.insert(tk.END, f"----------------- Pasta: {pasta.capitalize().replace('_', ' ')} -----------------\n\n")
+            label_pasta = tk.Label(scrollable_frame, text=f"Pasta: {pasta.capitalize().replace('_', ' ')}", font=("Helvetica", 12, "bold"))
+            label_pasta.pack(pady=(10, 5))
+
             arquivos = [f for f in os.listdir(caminho_pasta) if os.path.isfile(os.path.join(caminho_pasta, f))]
+
             if arquivos:
                 arquivos_encontrados = True
                 for arquivo in arquivos:
-                    lista_arquivos.insert(tk.END, f"  - {arquivo}\n")
+                    caminho_arquivo = os.path.join(caminho_pasta, arquivo)
+                    btn_arquivo = tk.Button(scrollable_frame, text=f" - {arquivo}", command=lambda path=caminho_arquivo: abrir_arquivo(path))
+                    btn_arquivo.pack(fill=tk.X, padx=20)
             else:
-                lista_arquivos.insert(tk.END, "    Nenhum arquivo encontrado.\n")
-            lista_arquivos.insert(tk.END, "\n")
-        else:
-            lista_arquivos.insert(tk.END, f"Aviso: Pasta '{pasta}' não encontrada.\n\n")
+                label_nenhum_arquivo = tk.Label(scrollable_frame, text="    Nenhum arquivo encontrado.", font=("Helvetica", 10))
+                label_nenhum_arquivo.pack()
 
     if not arquivos_encontrados:
-        lista_arquivos.insert(tk.END, "Nenhum documento encontrado nas pastas acessíveis.")
-    lista_arquivos.configure(state='disabled') # Impede a edição do texto
+        label_nenhum_doc = tk.Label(scrollable_frame, text="Nenhum documento encontrado nas pastas acessíveis.", font=("Helvetica", 10))
+        label_nenhum_doc.pack()
 
     # Se for Nível 3, adiciona os botões de administração
     if nivel_acesso == "Nivel 3":
