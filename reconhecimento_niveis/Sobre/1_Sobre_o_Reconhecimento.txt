@@ -1,0 +1,36 @@
+-----Explicação Detalhada da Tecnologia de Reconhecimento Facial-----
+Este documento descreve detalhadamente a tecnologia de reconhecimento facial utilizada no projeto. A solução é dividida em duas etapas principais: detecção de rosto e reconhecimento de rosto, que trabalham em conjunto para identificar e autenticar um usuário.
+
+1. Detecção de Rosto (Haar Cascade)
+Antes que o sistema possa reconhecer quem é a pessoa, ele precisa, primeiro, encontrar um rosto na imagem. O código faz isso usando um classificador chamado Haar Cascade, que é um modelo pré-treinado.
+
+O que ele faz: O classificador percorre a imagem em busca de padrões de pixels específicos que se parecem com características faciais, como a região dos olhos, o nariz e a boca. Ele não se importa com a identidade da pessoa, apenas com a forma de um rosto.
+
+Como funciona no código: A linha cv2.CascadeClassifier('haarcascade_frontalface_default.xml') carrega esse modelo. A função classificador_de_faces.detectMultiScale() então escaneia cada quadro de vídeo, retornando as coordenadas (x, y, largura, altura) de todos os rostos que ele encontrou.
+
+2. Reconhecimento de Rosto (LBPH - Local Binary Patterns Histograms)
+Uma vez que o rosto é detectado, o sistema passa para a segunda e mais importante etapa: identificar quem é a pessoa. O projeto utiliza o algoritmo LBPH para isso.
+
+Como o Treinamento Acontece (treinar_reconhecedor):
+
+Coleta de Dados: A função obter_imagens_e_rotulos() acessa a pasta faces e lê todas as imagens de cada usuário, usando o ID único de cada pessoa como um rótulo de identificação.
+
+Processamento: Para cada imagem, o código converte a face detectada para escala de cinza e a redimensiona para um tamanho padrão. Isso garante que todas as faces de treinamento tenham o mesmo formato, o que é fundamental para evitar erros.
+
+Aprendizado: O algoritmo LBPH analisa os padrões de pixels ao redor de cada face. Ele cria um histograma (um tipo de gráfico estatístico) que representa as características únicas daquele rosto. Ele repete esse processo para cada foto de cada pessoa, "aprendendo" os padrões associados a cada ID.
+
+Treinamento: O reconhecedor.train() usa esses histogramas para criar um modelo. Pense nesse modelo como um "banco de dados" de faces, onde cada ID único está vinculado a um conjunto de padrões faciais.
+
+Como o Reconhecimento Acontece (reconhecer_faces_webcam):
+
+Predição: Quando o sistema detecta um rosto em tempo real pela sua webcam, ele usa o modelo treinado para fazer uma predição com a função reconhecedor.predict().
+
+Confiança: A predição retorna um ID de rótulo e um valor de confiança. A confiança é a métrica mais importante:
+
+Um valor de confiança baixo (por exemplo, 20) significa que a semelhança entre o rosto na webcam e o rosto de treinamento é alta. O sistema está muito confiante no resultado.
+
+Um valor de confiança alto (por exemplo, 150) significa que a semelhança é baixa. O sistema não tem certeza de quem é a pessoa.
+
+Lógica de Acesso: O código usa a variável LIMITE_CONFIANCA para definir o quão confiante o sistema deve ser. Se o valor de confiança for menor que 60 (o valor padrão), o sistema considera o reconhecimento válido e exibe as informações do usuário. Se o valor for maior, o rosto é classificado como "Desconhecido".
+
+Essa combinação de detecção e reconhecimento garante que o sistema não apenas encontre rostos, mas também os identifique com base nas informações que você forneceu.
