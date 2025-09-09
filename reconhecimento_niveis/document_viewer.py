@@ -1,13 +1,12 @@
-# document_viewer.py
 # Este script cria a interface gráfica para exibir documentos e, para usuários de Nível 3,
-# fornece acesso às ferramentas de administração, que agora são importadas do módulo de utilidades.
+# fornece acesso às ferramentas de administração, que são importadas do módulo de utilidades.
 
 import tkinter as tk
 from tkinter import scrolledtext
 import os
 
 # --- IMPORTAÇÃO DAS FUNÇÕES CENTRALIZADAS ---
-# Em vez de reescrever as funções, agora as importamos diretamente do nosso arquivo de utilidades.
+# Em vez de reescrever as funções, as importa diretamente do arquivo de utilidades.
 from utils_admin import criar_novo_usuario_via_gui, adicionar_mais_fotos, excluir_usuario
 
 # --- Configuração de Caminhos ---
@@ -51,7 +50,7 @@ def mostrar_documentos(nivel_acesso):
     documentos_dir = os.path.join(base_dir, 'documentos')
     if not os.path.exists(documentos_dir):
         # Usando 'messagebox' importado de 'utils_admin' seria uma opção, mas para manter o desacoplamento,
-        # podemos usar o do tkinter diretamente aqui, já que é uma UI.
+        # Usar o do tkinter diretamente aqui, já que é uma UI.
         tk.messagebox.showerror("Erro de Arquivo", "Diretório 'documentos' não encontrado.")
         janela.destroy()
         return
@@ -68,7 +67,7 @@ def mostrar_documentos(nivel_acesso):
     frame_principal.pack(fill=tk.BOTH, expand=True)
 
     # Título personalizado para cada nível
-    titulos = { "Nivel 1": "Bem-vindo!", "Nivel 2": "Bem-vindo Diretor(a)!", "Nivel 3": "Painel do Ministro(a)!" }
+    titulos = { "Nivel 1": "Bem-vindo!", "Nivel 2": "Bem-vindo Diretor(a)!", "Nivel 3": "Bem-vindo Ministro(a)!" }
     titulo = tk.Label(frame_principal, text=titulos.get(nivel_acesso, "Bem-vindo!"), font=("Helvetica", 16))
     titulo.pack(pady=10)
 
@@ -110,7 +109,7 @@ def mostrar_documentos(nivel_acesso):
         admin_frame = tk.LabelFrame(janela, text="Ferramentas de Administração", padx=10, pady=10)
         admin_frame.pack(fill=tk.X, padx=10, pady=5)
 
-        # Cada botão agora simplesmente chama a função correspondente do 'utils_admin.py'
+        # Cada botão chama a função correspondente do 'utils_admin.py'
         btn_criar_usuario = tk.Button(admin_frame, text="Criar Novo Usuário", command=criar_novo_usuario_via_gui)
         btn_criar_usuario.pack(side=tk.LEFT, expand=True, padx=5)
 

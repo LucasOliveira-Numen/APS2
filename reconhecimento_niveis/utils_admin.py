@@ -1,4 +1,3 @@
-# utils_admin.py
 # Módulo Central de Utilitários e Administração
 #
 # Propósito: Este arquivo serve como o "cérebro" para todas as operações de gerenciamento
@@ -42,7 +41,7 @@ def invalidar_modelo_treinado():
     """
     Exclui os arquivos do modelo treinado para forçar um novo treinamento.
     Esta função é a chave para a otimização: ao modificar os dados de treinamento (adicionar/excluir
-    usuários ou fotos), chamamos esta função para garantir que o modelo antigo seja descartado.
+    usuários ou fotos), chama esta função para garantir que o modelo antigo seja descartado.
     """
     if os.path.exists(caminho_modelo_salvo):
         os.remove(caminho_modelo_salvo)
@@ -167,7 +166,6 @@ def tirar_e_salvar_fotos(id_unico, cpf_usuario="novo_usuario"):
     return fotos_tiradas
 
 # As funções abaixo orquestram o processo de gerenciamento, chamando as funções de base.
-# Seus comentários são mais simples pois sua lógica é direta.
 
 def criar_novo_usuario_via_gui():
     """Interface para criar um novo usuário."""

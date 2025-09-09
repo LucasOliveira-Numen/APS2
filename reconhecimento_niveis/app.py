@@ -1,4 +1,3 @@
-# app.py
 # Script Principal do Sistema de Reconhecimento Facial
 #
 # Fluxo de Execução:
@@ -31,7 +30,7 @@ if not os.path.exists(face_cascade_path):
     exit()
 classificador_de_faces = cv2.CascadeClassifier(face_cascade_path)
 
-# Caminhos para as pastas e arquivos de dados, agora apontando para as subpastas organizadas.
+# Caminhos para as pastas e arquivos de dados, apontando para as subpastas organizadas.
 diretorio_de_faces = os.path.join(base_dir, 'faces')
 diretorio_modelo = os.path.join(base_dir, 'Modelo_Treinamento')
 diretorio_usuarios = os.path.join(base_dir, 'Usuarios_Cadastrados')

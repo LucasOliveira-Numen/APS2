@@ -1,16 +1,13 @@
-Arquivos do Projeto
-app.py
-Este é o coração do seu sistema. Ele lida com o reconhecimento facial em tempo real, verifica o nível de acesso do usuário e, após a autenticação, chama a interface de visualização de documentos.
-Ele também contém a lógica de treinamento do modelo e a remoção de acentos nos nomes para evitar erros de exibição.
+----- Descrição dos Arquivos do Projeto -----
 
-cadastro_app.py
-Este aplicativo é dedicado ao cadastro de novos usuários.
-A interface permite que você insira o nome, CPF e nível, e em seguida, captura fotos diretamente da webcam, salvando-as de forma organizada para o treinamento do modelo.
+**app.py**
+Este é o script principal e ponto de entrada do sistema. Sua responsabilidade é orquestrar o fluxo de reconhecimento: ele primeiro verifica se existe um modelo treinado na pasta `Modelo_Treinamento` e o carrega. Caso contrário, ele treina um novo modelo com as fotos da pasta `faces` e o salva. Em seguida, inicia a webcam, realiza o reconhecimento facial e, após uma autenticação bem-sucedida, chama a interface do `document_viewer.py`.
 
-document_viewer.py
-Este arquivo é a interface do usuário. Ele exibe os documentos com base no nível de acesso do usuário.
-Para usuários de Nível 3, ele também mostra os botões para as funções de administração, como criar, excluir ou adicionar fotos a usuários.
+**utils_admin.py**
+Este é um módulo central de utilidades, funcionando como o "back-end" das operações de gerenciamento. Ele contém todas as funções para manipular os arquivos de dados dos usuários (criar, excluir, adicionar fotos), gerenciar os arquivos JSON e realizar a captura de imagens com feedback visual. Centralizar essa lógica aqui torna o código mais limpo e fácil de manter.
 
-admin_app.py
-Este script é o painel de administração que permite que usuários de Nível 3 gerenciem os dados.
-É importante notar que ele só deve ser executado pelo app.py para garantir a segurança.
+**document_viewer.py**
+Este arquivo é responsável por toda a interface gráfica que o usuário vê após o login. Ele exibe os documentos de forma seletiva, com base no nível de acesso do usuário autenticado. Para usuários de Nível 3, a janela também exibe botões de administração, que por sua vez chamam as funções correspondentes do módulo `utils_admin.py` para executar as tarefas.
+
+**cadastro_app.py**
+Após a refatoração do projeto, este script funciona como um "atalho" ou "lançador" independente. Sua única função é iniciar a interface de cadastro de novos usuários, chamando a função `criar_novo_usuario_via_gui()` que está centralizada no `utils_admin.py`.
