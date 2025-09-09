@@ -1,0 +1,52 @@
+# admin_app.py
+# Este script serve como um atalho direto para as ferramentas de administração.
+# Ele importa e chama as funções centralizadas do módulo 'utils_admin.py'.
+
+import tkinter as tk
+from tkinter import messagebox
+import os
+
+# Verifica se o arquivo de utilidades existe
+utils_path = os.path.join(os.path.dirname(__file__), 'utils_admin.py')
+if not os.path.exists(utils_path):
+    root = tk.Tk()
+    root.withdraw()
+    messagebox.showerror(
+        "Erro Crítico",
+        "O arquivo 'utils_admin.py' não foi encontrado. Este script não pode funcionar sem ele."
+    )
+    root.destroy()
+    exit()
+
+# Importa apenas as funções necessárias
+from utils_admin import adicionar_mais_fotos, excluir_usuario, criar_novo_usuario_via_gui
+
+def criar_janela_admin():
+    """
+    Cria a interface gráfica do painel de administração.
+    Os botões agora chamam diretamente as funções importadas.
+    """
+    janela = tk.Tk()
+    janela.title("Painel de Administração (Acesso Direto)")
+    janela.geometry("350x200")
+    janela.resizable(False, False)
+
+    frame = tk.Frame(janela, padx=20, pady=20)
+    frame.pack(expand=True)
+
+    # Note que não precisamos mais do campo de CPF, pois as funções importadas
+    # já pedem essa informação em uma caixa de diálogo.
+
+    btn_criar = tk.Button(frame, text="Criar Novo Usuário", command=criar_novo_usuario_via_gui)
+    btn_criar.pack(fill=tk.X, pady=5, ipady=4)
+
+    btn_adicionar = tk.Button(frame, text="Adicionar Mais Fotos", command=adicionar_mais_fotos)
+    btn_adicionar.pack(fill=tk.X, pady=5, ipady=4)
+
+    btn_excluir = tk.Button(frame, text="Excluir Usuário", command=excluir_usuario, bg="#E74C3C", fg="white")
+    btn_excluir.pack(fill=tk.X, pady=5, ipady=4)
+
+    janela.mainloop()
+
+if __name__ == "__main__":
+    criar_janela_admin()
