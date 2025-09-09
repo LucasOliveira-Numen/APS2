@@ -1,3 +1,3 @@
 # requirements.txt
-opencv-contrib-python
-numpy
+opencv-contrib-python==4.12.0.88
+numpy==2.2.6
