@@ -1,10 +1,13 @@
+# app.py
 # Script Principal do Sistema de Reconhecimento Facial
+# (Versão Final, Corrigida e Totalmente Comentada)
 #
 # Fluxo de Execução:
-# 1. Tenta carregar um modelo de reconhecimento facial previamente treinado.
-# 2. Se não encontrar, ele treina um novo modelo com base nas fotos na pasta 'faces'.
-# 3. Inicia a webcam para o reconhecimento em tempo real.
-# 4. Ao reconhecer um rosto autorizado, concede acesso e abre o visualizador de documentos.
+# 1. Verifica se o "Modo de Desenvolvimento" está ativo para pular o reconhecimento.
+# 2. Se não, tenta carregar um modelo de reconhecimento previamente treinado.
+# 3. Se não encontrar o modelo, treina um novo com base nas fotos na pasta 'faces'.
+# 4. Inicia a webcam para o reconhecimento em tempo real.
+# 5. Ao reconhecer um rosto autorizado, concede acesso e abre o visualizador de documentos.
 
 # --- Importação das Bibliotecas ---
 import cv2                      # OpenCV: A principal biblioteca para visão computacional.
@@ -43,7 +46,12 @@ caminho_json_dados_usuario = os.path.join(diretorio_usuarios, 'userData.json')
 # Limite de confiança: quanto MENOR o valor, mais CONFIANTE o sistema está.
 # Pense nisso como a "distância" entre o rosto visto e os rostos no banco de dados.
 # Distância pequena = rostos muito parecidos.
-LIMITE_CONFIANCA = 60
+LIMITE_CONFIANCA = 50
+
+# --- MODO DE DESENVOLVIMENTO ---
+# Altere para True para pular o reconhecimento facial e ir direto para o painel de Nível 3.
+# É útil para testar a interface ou cadastrar usuários quando o reconhecimento está falhando.
+MODO_DESENVOLVEDOR = False
 
 # --- Funções Auxiliares ---
 def remover_acentos(texto):
@@ -108,7 +116,6 @@ def treinar_e_salvar_modelo():
     if not dados_usuario:
         print("Erro: Nenhum dado de usuário encontrado para treinar.")
         return None, None
-
     ids_unicos = [dados['id'] for dados in dados_usuario.values()]
     if not ids_unicos:
         print("Erro: Nenhum ID de pessoa encontrado para treinar.")
@@ -202,11 +209,11 @@ def reconhecer_faces_webcam(reconhecedor, ids_treinamento, dados_validacao, dado
                         if acesso_concedido_tempo is None:
                             acesso_concedido_tempo = time.time() # Inicia o timer na primeira detecção.
 
-                        if time.time() - acesso_concedido_tempo >= 3:
+                        if time.time() - acesso_concedido_tempo >= 3: # Se o usuário autorizado for visto por 3 segundos...
                             captura_de_video.release()
                             cv2.destroyAllWindows()
                             mostrar_documentos(nivel) # Abre a interface de documentos.
-                            return
+                            return # Encerra a função de reconhecimento.
                         else:
                             tempo_restante = 3 - int(time.time() - acesso_concedido_tempo)
                             texto_timer = f"Acesso em {tempo_restante}s..."
@@ -225,35 +232,43 @@ def reconhecer_faces_webcam(reconhecedor, ids_treinamento, dados_validacao, dado
     cv2.destroyAllWindows()
     sys.exit()
 
-# --- Bloco Principal de Execução ---
+# --- Bloco Principal de Execução (com Modo de Desenvolvimento) ---
 # Este bloco é o ponto de entrada quando o script é executado.
 if __name__ == "__main__":
-    dados_validacao = carregar_dados_json(caminho_json_validacao)
-    dados_usuario = carregar_dados_json(caminho_json_dados_usuario)
 
-    if not dados_usuario:
-        print("Nenhum usuário cadastrado. Execute o `cadastro_app.py` para adicionar usuários.")
-        sys.exit()
-
-    # --- LÓGICA DE CARREGAMENTO OU TREINAMENTO ---
-    # Verifica se os arquivos de modelo já existem.
-    if os.path.exists(caminho_modelo_salvo) and os.path.exists(caminho_mapa_ids):
-        # Se existem, carrega o modelo em vez de treinar.
-        print("Carregando modelo de reconhecimento facial existente...")
-        reconhecedor = cv2.face.LBPHFaceRecognizer_create()
-        reconhecedor.read(caminho_modelo_salvo)
-        mapa_ids = carregar_dados_json(caminho_mapa_ids)
-        ids_treinamento = mapa_ids.get("ids_treinamento")
-        print("Modelo carregado com sucesso.")
+    # --- Modo de Desenvolvimento ---
+    if MODO_DESENVOLVEDOR:
+        # Se a variável estiver como True, pula todo o processo de reconhecimento.
+        print("="*40)
+        print("MODO DE DESENVOLVIMENTO ATIVADO")
+        print("Pulando reconhecimento facial e abrindo o painel de Nível 3.")
+        print("="*40)
+        mostrar_documentos("Nivel 3")
     else:
-        # Se não existem, executa o treinamento completo e salva os arquivos.
-        print("Nenhum modelo treinado encontrado. Iniciando novo treinamento...")
-        reconhecedor, ids_treinamento = treinar_e_salvar_modelo()
+        # Se estiver como False, executa o fluxo normal do programa.
+        dados_validacao = carregar_dados_json(caminho_json_validacao)
+        dados_usuario = carregar_dados_json(caminho_json_dados_usuario)
 
-    # Inicia o reconhecimento com o modelo (seja ele carregado ou recém-treinado).
-    if reconhecedor and ids_treinamento:
-        reconhecer_faces_webcam(reconhecedor, ids_treinamento, dados_validacao, dados_usuario)
-    else:
-        print("Falha ao carregar ou treinar o modelo. Encerrando o programa.")
+        if not dados_usuario:
+            print("Nenhum usuário cadastrado. Execute o `cadastro_app.py` para adicionar usuários.")
+            sys.exit()
+
+        # --- LÓGICA DE CARREGAMENTO OU TREINAMENTO DO MODELO ---
+        if os.path.exists(caminho_modelo_salvo) and os.path.exists(caminho_mapa_ids):
+            print("Carregando modelo de reconhecimento facial existente...")
+            reconhecedor = cv2.face.LBPHFaceRecognizer_create()
+            reconhecedor.read(caminho_modelo_salvo)
+            mapa_ids = carregar_dados_json(caminho_mapa_ids)
+            ids_treinamento = mapa_ids.get("ids_treinamento")
+            print("Modelo carregado com sucesso.")
+        else:
+            print("Nenhum modelo treinado encontrado. Iniciando novo treinamento...")
+            reconhecedor, ids_treinamento = treinar_e_salvar_modelo()
+
+        # Inicia o reconhecimento com o modelo (seja ele carregado ou recém-treinado).
+        if reconhecedor and ids_treinamento:
+            reconhecer_faces_webcam(reconhecedor, ids_treinamento, dados_validacao, dados_usuario)
+        else:
+            print("Falha ao carregar ou treinar o modelo. Encerrando o programa.")
 
     sys.exit()
