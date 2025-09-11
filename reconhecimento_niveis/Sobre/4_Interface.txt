@@ -1,0 +1,46 @@
+----- Análise Detalhada da Interface Gráfica (document_viewer.py) -----
+
+Este documento detalha a construção da interface gráfica (GUI) do projeto, responsável por exibir os documentos e as ferramentas administrativas. A interface foi desenvolvida utilizando a biblioteca nativa do Python, Tkinter, por sua simplicidade e por já vir inclusa com a linguagem.
+
+[cite_start]A interface tem um design dinâmico, adaptando-se ao nível de acesso do usuário que foi autenticado pelo sistema de reconhecimento facial[cite: 4].
+
+--- Componentes e Lógica da Construção ---
+
+A construção da janela principal é orquestrada pela função `mostrar_documentos(nivel_acesso)`.
+
+1.  **Criação da Janela Principal:**
+    * A base da interface é uma janela `tk.Tk()`, que funciona como o contêiner principal.
+    * Propriedades como título (`janela.title()`) e tamanho inicial (`janela.geometry()`) são definidas para dar uma aparência consistente.
+
+2.  **Estrutura de Acesso a Documentos:**
+    * A lógica de permissões é controlada por um dicionário chamado `mapa_niveis`. [cite_start]Este mapa associa cada nível de acesso (ex: "Nivel 2") a uma lista de pastas de documentos que aquele nível pode visualizar (ex: ["nivel_1", "nivel_2"])[cite: 32].
+    * Isso permite que o sistema exiba dinamicamente o conteúdo apropriado, garantindo que um usuário de Nível 1 não veja os documentos de Nível 2 ou 3.
+
+3.  **Criação de uma Lista Rolável (Scrollable List):**
+    * Para exibir uma lista de arquivos que pode ser maior que a altura da janela, foi implementado um widget de lista com barra de rolagem. Esta é a parte mais complexa da interface e foi construída com três componentes do Tkinter trabalhando juntos:
+        * **`tk.Canvas`**: Funciona como a área visível onde o conteúdo será desenhado.
+        * **`tk.Scrollbar`**: A barra de rolagem vertical, que é vinculada diretamente ao `Canvas`.
+        * **`tk.Frame`**: Um frame interno (`scrollable_frame`) é colocado *dentro* do Canvas. Este frame é o verdadeiro contêiner para todos os botões de arquivo. Ele pode crescer verticalmente o quanto for necessário.
+    * A "mágica" acontece ao vincular o tamanho do frame interno à região de rolagem do Canvas. Sempre que novos botões são adicionados ao frame e seu tamanho aumenta, o Canvas atualiza sua área rolável, permitindo que a `Scrollbar` percorra todo o conteúdo.
+
+4.  **Exibição dos Arquivos:**
+    * O programa percorre as pastas de documentos permitidas para o nível de acesso do usuário.
+    * Para cada pasta, um `tk.Label` com o nome da pasta é criado para servir como um título de seção.
+    * [cite_start]Em seguida, para cada arquivo encontrado dentro da pasta, um `tk.Button` é criado[cite: 33]. O texto do botão é o nome do arquivo.
+    * O comando de cada botão (`command=`) é associado à função `abrir_arquivo`, utilizando uma função `lambda` para garantir que o caminho correto do arquivo seja passado como argumento no momento do clique.
+
+5.  **Painel de Administração (Exclusivo para Nível 3):**
+    * O código contém uma verificação condicional: `if nivel_acesso == "Nivel 3":`.
+    * [cite_start]Se o usuário for do Nível 3, um `tk.LabelFrame` (um container com um título) chamado "Ferramentas de Administração" é criado e exibido na parte inferior da janela[cite: 5, 11].
+    * Dentro deste frame, três botões são adicionados:
+        * [cite_start]**"Criar Novo Usuário"**: Chama a função `criar_novo_usuario_via_gui`[cite: 34].
+        * [cite_start]**"Adicionar Fotos"**: Chama a função `adicionar_mais_fotos`[cite: 35].
+        * [cite_start]**"Excluir Usuário"**: Chama a função `excluir_usuario`[cite: 36].
+    * É importante notar que estes botões não contêm a lógica em si; eles apenas chamam as funções correspondentes que foram importadas do módulo central `utils_admin.py`, mantendo a interface limpa e organizada.
+
+6.  **Janela de Visualização de Arquivo (Função `abrir_arquivo`):**
+    * Quando um botão de arquivo é clicado, esta função cria uma nova janela (`tk.Toplevel`) que aparece sobre a janela principal.
+    * Dentro desta nova janela, um widget `scrolledtext.ScrolledText` é usado. Ele é ideal para exibir o conteúdo de arquivos de texto, pois já vem com uma barra de rolagem embutida.
+    * Após inserir o conteúdo do arquivo, o estado do widget de texto é configurado para `'disabled'`, o que o torna um campo de apenas leitura, impedindo que o usuário altere o conteúdo do documento.
+
+[cite_start]Esta abordagem modular e dinâmica resulta em uma interface segura e funcional que se adapta automaticamente às permissões do usuário, fornecendo funcionalidades administrativas apenas para aqueles com a autorização necessária[cite: 11, 32].

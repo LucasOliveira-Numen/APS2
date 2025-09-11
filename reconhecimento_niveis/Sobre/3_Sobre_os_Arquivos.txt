@@ -1,13 +1,21 @@
 ----- Descrição dos Arquivos do Projeto -----
 
 **app.py**
-Este é o script principal e ponto de entrada do sistema. Sua responsabilidade é orquestrar o fluxo de reconhecimento: ele primeiro verifica se existe um modelo treinado na pasta `Modelo_Treinamento` e o carrega. Caso contrário, ele treina um novo modelo com as fotos da pasta `faces` e o salva. Em seguida, inicia a webcam, realiza o reconhecimento facial e, após uma autenticação bem-sucedida, chama a interface do `document_viewer.py`.
+Este é o script principal e ponto de entrada do sistema.
+Sua responsabilidade é orquestrar o fluxo de reconhecimento: ele primeiro verifica se existe um modelo treinado na pasta `Modelo_Treinamento` e o carrega.
+Caso contrário, ele treina um novo modelo com as fotos da pasta `faces` e o salva.
+Em seguida, inicia a webcam, realiza o reconhecimento facial e, após uma autenticação bem-sucedida, chama a interface do `document_viewer.py`.
 
 **utils_admin.py**
-Este é um módulo central de utilidades, funcionando como o "back-end" das operações de gerenciamento. Ele contém todas as funções para manipular os arquivos de dados dos usuários (criar, excluir, adicionar fotos), gerenciar os arquivos JSON e realizar a captura de imagens com feedback visual. Centralizar essa lógica aqui torna o código mais limpo e fácil de manter.
+Este é um módulo central de utilidades, funcionando como o "back-end" das operações de gerenciamento.
+Ele contém todas as funções para manipular os arquivos de dados dos usuários (criar, excluir, adicionar fotos), gerenciar os arquivos JSON e realizar a captura de imagens com feedback visual.
+Centralizar essa lógica aqui torna o código mais limpo e fácil de manter.
 
 **document_viewer.py**
-Este arquivo é responsável por toda a interface gráfica que o usuário vê após o login. Ele exibe os documentos de forma seletiva, com base no nível de acesso do usuário autenticado. Para usuários de Nível 3, a janela também exibe botões de administração, que por sua vez chamam as funções correspondentes do módulo `utils_admin.py` para executar as tarefas.
+Este arquivo é responsável por toda a interface gráfica que o usuário vê após o login.
+Ele exibe os documentos de forma seletiva, com base no nível de acesso do usuário autenticado.
+Para usuários de Nível 3, a janela também exibe botões de administração, que por sua vez chamam as funções correspondentes do módulo `utils_admin.py` para executar as tarefas.
 
 **cadastro_app.py**
-Após a refatoração do projeto, este script funciona como um "atalho" ou "lançador" independente. Sua única função é iniciar a interface de cadastro de novos usuários, chamando a função `criar_novo_usuario_via_gui()` que está centralizada no `utils_admin.py`.
+Após a refatoração do projeto, este script funciona como um "atalho" ou "lançador" independente.
+Sua única função é iniciar a interface de cadastro de novos usuários, chamando a função `criar_novo_usuario_via_gui()` que está centralizada no `utils_admin.py`.
