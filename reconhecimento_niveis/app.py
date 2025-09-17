@@ -1,4 +1,3 @@
-# app.py
 # Script Principal do Sistema de Reconhecimento Facial
 # (Versão Final, Corrigida e Totalmente Comentada)
 #
@@ -46,7 +45,12 @@ caminho_json_dados_usuario = os.path.join(diretorio_usuarios, 'userData.json')
 # Limite de confiança: quanto MENOR o valor, mais CONFIANTE o sistema está.
 # Pense nisso como a "distância" entre o rosto visto e os rostos no banco de dados.
 # Distância pequena = rostos muito parecidos.
-LIMITE_CONFIANCA = 50
+# Ajustado para ser mais restritivo e reduzir falsos positivos
+LIMITE_CONFIANCA = 50  # Mais restritivo que antes (era 50)
+
+# Configurações adicionais para validação
+MIN_TAMANHO_ROSTO = 80  # Tamanho mínimo do rosto detectado (pixels) - reduzido para melhor detecção
+MAX_TENTATIVAS_RECONHECIMENTO = 2  # Número de tentativas consecutivas necessárias - reduzido para ser mais responsivo
 
 # --- MODO DE DESENVOLVIMENTO ---
 # Altere para True para pular o reconhecimento facial e ir direto para o painel de Nível 3.
@@ -70,9 +74,10 @@ def remover_acentos(texto):
 
 def obter_imagens_e_rotulos(ids_unicos):
     """
-    Prepara os dados para o treinamento.
+    Prepara os dados para o treinamento com data augmentation.
     - Percorre a pasta 'faces'.
     - Para cada usuário, lê suas imagens.
+    - Aplica data augmentation para criar variações.
     - Detecta o rosto em cada imagem.
     - Associa cada rosto detectado a um rótulo numérico (0, 1, 2...).
     """
@@ -81,10 +86,17 @@ def obter_imagens_e_rotulos(ids_unicos):
     # o ID de texto único de cada usuário para um número inteiro.
     mapeamento_ids_para_rotulo = {id_unico: i for i, id_unico in enumerate(ids_unicos)}
 
-    print("Coletando imagens e rótulos para o treinamento...")
+    print("Coletando imagens e rótulos para o treinamento com data augmentation...")
+
+    # Importa as funções de data augmentation
+    from utils_admin import aplicar_data_augmentation, validar_qualidade_imagem
+
     for id_unico in ids_unicos:
         diretorio_pessoa = os.path.join(diretorio_de_faces, id_unico)
         if not os.path.isdir(diretorio_pessoa): continue
+
+        print(f"Processando usuário: {id_unico}")
+        imagens_processadas = 0
 
         for nome_imagem in os.listdir(diretorio_pessoa):
             if nome_imagem.lower().endswith(('.jpg', '.png', '.jpeg')):
@@ -93,17 +105,35 @@ def obter_imagens_e_rotulos(ids_unicos):
                 img = cv2.imread(caminho_imagem, cv2.IMREAD_GRAYSCALE)
                 if img is None: continue
 
+                # Valida a qualidade da imagem original
+                if not validar_qualidade_imagem(img):
+                    print(f"  Imagem de baixa qualidade ignorada: {nome_imagem}")
+                    continue
+
                 # Detecta rostos na imagem de treinamento para garantir que apenas a face seja usada.
-                rostos_detectados = classificador_de_faces.detectMultiScale(img, 1.1, 5)
+                rostos_detectados = classificador_de_faces.detectMultiScale(img, 1.1, 8, minSize=(100, 100))
                 for (x, y, w, h) in rostos_detectados:
                     # Recorta a região de interesse (Region of Interest - ROI), que é o rosto.
                     roi = img[y:y+h, x:x+w]
                     # Redimensiona para um tamanho padrão (200x200 pixels) para garantir consistência no treinamento.
                     roi_redimensionado = cv2.resize(roi, (200, 200), interpolation=cv2.INTER_LINEAR)
-                    faces.append(roi_redimensionado)
-                    ids.append(mapeamento_ids_para_rotulo[id_unico])
+
+                    # Aplica data augmentation para criar variações da imagem
+                    imagens_aumentadas = aplicar_data_augmentation(roi_redimensionado)
+
+                    # Adiciona todas as variações ao conjunto de treinamento
+                    for img_aumentada in imagens_aumentadas:
+                        faces.append(img_aumentada)
+                        ids.append(mapeamento_ids_para_rotulo[id_unico])
+
+                    imagens_processadas += 1
+                    break  # Usa apenas o primeiro rosto detectado por imagem
+
+        print(f"  {imagens_processadas} imagens processadas para {id_unico}")
 
     if not faces: return None, None, None
+
+    print(f"Total de imagens para treinamento: {len(faces)}")
     # Converte as listas para arrays numpy, que é o formato de dados que o OpenCV utiliza.
     return np.array(faces), np.array(ids), list(mapeamento_ids_para_rotulo.keys())
 
@@ -156,6 +186,7 @@ def obter_nivel_e_status(cpf, dados_validacao):
 def reconhecer_faces_webcam(reconhecedor, ids_treinamento, dados_validacao, dados_usuario):
     """
     Função principal que abre a webcam, detecta e reconhece faces em tempo real.
+    Versão melhorada com validações adicionais para reduzir falsos positivos.
     """
     captura_de_video = cv2.VideoCapture(0)
     if not captura_de_video.isOpened():
@@ -164,6 +195,8 @@ def reconhecer_faces_webcam(reconhecedor, ids_treinamento, dados_validacao, dado
 
     print("Reconhecimento facial iniciado. Pressione 'q' para sair.")
     acesso_concedido_tempo = None # Variável para controlar o timer de acesso.
+    tentativas_reconhecimento = 0  # Contador de tentativas consecutivas
+    ultimo_rosto_reconhecido = None  # Para validar consistência
 
     # Loop infinito que lê cada frame da webcam.
     while True:
@@ -171,18 +204,31 @@ def reconhecer_faces_webcam(reconhecedor, ids_treinamento, dados_validacao, dado
         if not ret: break
 
         frame_cinza = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        rostos_detectados = classificador_de_faces.detectMultiScale(frame_cinza, 1.1, 5)
+        # Parâmetros otimizados para detecção de rostos - balanceado entre precisão e performance
+        rostos_detectados = classificador_de_faces.detectMultiScale(
+            frame_cinza,
+            scaleFactor=1.1,
+            minNeighbors=6,  # Balanceado para melhor performance
+            minSize=(MIN_TAMANHO_ROSTO, MIN_TAMANHO_ROSTO),  # Tamanho mínimo
+            flags=cv2.CASCADE_SCALE_IMAGE  # Otimização adicional
+        )
 
-        # Se nenhum rosto for detectado no frame, reseta o timer.
+        # Se nenhum rosto for detectado no frame, reseta os contadores.
         if len(rostos_detectados) == 0:
             acesso_concedido_tempo = None
+            tentativas_reconhecimento = 0
+            ultimo_rosto_reconhecido = None
 
         for (x, y, w, h) in rostos_detectados:
+            # Validação adicional: rosto deve ter tamanho mínimo
+            if w < MIN_TAMANHO_ROSTO or h < MIN_TAMANHO_ROSTO:
+                continue
+
             roi_cinza = frame_cinza[y:y+h, x:x+w]
             # O modelo prevê a identidade do rosto. Retorna o rótulo (ex: 0) e a confiança.
             rotulo_id, confianca = reconhecedor.predict(roi_cinza)
 
-            # Se a confiança for boa (menor que o limite) e o rótulo for válido...
+            # Validação mais rigorosa: confiança deve ser muito boa
             if confianca < LIMITE_CONFIANCA and rotulo_id < len(ids_treinamento):
                 # ...traduz o rótulo numérico de volta para o ID único do usuário.
                 id_unico_encontrado = ids_treinamento[rotulo_id]
@@ -190,6 +236,13 @@ def reconhecer_faces_webcam(reconhecedor, ids_treinamento, dados_validacao, dado
                 cpf_encontrado = next((cpf for cpf, data in dados_usuario.items() if data['id'] == id_unico_encontrado), None)
 
                 if cpf_encontrado:
+                    # Validação de consistência: o mesmo rosto deve ser reconhecido várias vezes
+                    if ultimo_rosto_reconhecido == cpf_encontrado:
+                        tentativas_reconhecimento += 1
+                    else:
+                        tentativas_reconhecimento = 1
+                        ultimo_rosto_reconhecido = cpf_encontrado
+
                     # Com o CPF, busca o nome e o nível de acesso.
                     nome_completo = dados_usuario[cpf_encontrado]['nome']
                     nivel, status = obter_nivel_e_status(cpf_encontrado, dados_validacao)
@@ -198,18 +251,23 @@ def reconhecer_faces_webcam(reconhecedor, ids_treinamento, dados_validacao, dado
                     texto_nome = f"Nome: {remover_acentos(nome_completo)}"
                     cor_status = (0, 255, 0) if status == "Autorizado" else (0, 0, 255) # Verde ou vermelho
                     texto_status = f"Status: {status} ({remover_acentos(nivel)})"
+                    texto_confianca = f"Confianca: {confianca:.1f} | Tentativas: {tentativas_reconhecimento}"
 
                     # Desenha o retângulo e os textos na tela.
                     cv2.rectangle(frame, (x, y), (x+w, y+h), cor_status, 2)
-                    cv2.putText(frame, texto_nome, (x, y-45), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-                    cv2.putText(frame, texto_status, (x, y-20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, cor_status, 2)
+                    cv2.putText(frame, texto_nome, (x, y-65), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+                    cv2.putText(frame, texto_status, (x, y-40), cv2.FONT_HERSHEY_SIMPLEX, 0.7, cor_status, 2)
+                    cv2.putText(frame, texto_confianca, (x, y-15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
-                    # Lógica do timer de 3 segundos para conceder acesso.
-                    if status == "Autorizado":
+                    # Lógica do timer de acesso com validação de tentativas
+                    if status == "Autorizado" and tentativas_reconhecimento >= MAX_TENTATIVAS_RECONHECIMENTO:
                         if acesso_concedido_tempo is None:
-                            acesso_concedido_tempo = time.time() # Inicia o timer na primeira detecção.
+                            acesso_concedido_tempo = time.time() # Inicia o timer na primeira detecção válida.
+                            print(f"Rosto reconhecido: {nome_completo} - Iniciando timer de acesso...")
 
+                        # Teste com 3 segundos para dar mais tempo de validação
                         if time.time() - acesso_concedido_tempo >= 3: # Se o usuário autorizado for visto por 3 segundos...
+                            print(f"Acesso concedido para: {nome_completo}")
                             captura_de_video.release()
                             cv2.destroyAllWindows()
                             mostrar_documentos(nivel) # Abre a interface de documentos.
@@ -217,13 +275,27 @@ def reconhecer_faces_webcam(reconhecedor, ids_treinamento, dados_validacao, dado
                         else:
                             tempo_restante = 3 - int(time.time() - acesso_concedido_tempo)
                             texto_timer = f"Acesso em {tempo_restante}s..."
-                            cv2.putText(frame, texto_timer, (x, y+h+30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                            cv2.putText(frame, texto_timer, (x, y+h+20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+                            # Mostra frame com timer e para o loop de reconhecimento
+                            cv2.imshow('Reconhecimento Facial', frame)
+                            cv2.waitKey(1)
+                            continue  # Pula para o próximo frame sem processar outros rostos
+
+                    elif status == "Autorizado":
+                        # Mostra que está validando
+                        texto_validando = f"Validando... ({tentativas_reconhecimento}/{MAX_TENTATIVAS_RECONHECIMENTO})"
+                        cv2.putText(frame, texto_validando, (x, y+h+20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
                 else:
                     acesso_concedido_tempo = None # Reseta se o ID não for encontrado (caso raro).
+                    tentativas_reconhecimento = 0
             else:
                 acesso_concedido_tempo = None # Reseta o timer se o rosto for desconhecido.
+                tentativas_reconhecimento = 0
+                ultimo_rosto_reconhecido = None
                 cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 255), 2)
                 cv2.putText(frame, "Desconhecido", (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
+                cv2.putText(frame, f"Confianca: {confianca:.1f}", (x, y+h+15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
 
         cv2.imshow('Reconhecimento Facial', frame)
         if cv2.waitKey(1) & 0xFF == ord('q'): break # Encerra o loop se 'q' for pressionado.
