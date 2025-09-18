@@ -1,21 +1,276 @@
------ Descrição dos Arquivos do Projeto -----
+================================================================================
+                    SISTEMA DE RECONHECIMENTO FACIAL - ARQUIVOS
+================================================================================
 
-**app.py**
-Este é o script principal e ponto de entrada do sistema.
-Sua responsabilidade é orquestrar o fluxo de reconhecimento: ele primeiro verifica se existe um modelo treinado na pasta `Modelo_Treinamento` e o carrega.
-Caso contrário, ele treina um novo modelo com as fotos da pasta `faces` e o salva.
-Em seguida, inicia a webcam, realiza o reconhecimento facial e, após uma autenticação bem-sucedida, chama a interface do `document_viewer.py`.
+Este documento apresenta uma análise detalhada de cada arquivo do sistema,
+explicando suas responsabilidades, funcionalidades e como se integram
+para formar uma solução completa de reconhecimento facial.
 
-**utils_admin.py**
-Este é um módulo central de utilidades, funcionando como o "back-end" das operações de gerenciamento.
-Ele contém todas as funções para manipular os arquivos de dados dos usuários (criar, excluir, adicionar fotos), gerenciar os arquivos JSON e realizar a captura de imagens com feedback visual.
-Centralizar essa lógica aqui torna o código mais limpo e fácil de manter.
+================================================================================
+1. ARQUIVOS PRINCIPAIS DO SISTEMA
+================================================================================
 
-**document_viewer.py**
-Este arquivo é responsável por toda a interface gráfica que o usuário vê após o login.
-Ele exibe os documentos de forma seletiva, com base no nível de acesso do usuário autenticado.
-Para usuários de Nível 3, a janela também exibe botões de administração, que por sua vez chamam as funções correspondentes do módulo `utils_admin.py` para executar as tarefas.
+1.1 app.py - MÓDULO CORE DO SISTEMA
+-----------------------------------
+RESPONSABILIDADE: Orquestração principal e ponto de entrada do sistema
 
-**cadastro_app.py**
-Após a refatoração do projeto, este script funciona como um "atalho" ou "lançador" independente.
-Sua única função é iniciar a interface de cadastro de novos usuários, chamando a função `criar_novo_usuario_via_gui()` que está centralizada no `utils_admin.py`.
+FUNCIONALIDADES PRINCIPAIS:
+├── Verificação e carregamento de dependências
+├── Gerenciamento do modelo de reconhecimento (treinamento/carregamento)
+├── Execução do reconhecimento facial em tempo real
+├── Validação de identidade e controle de acesso
+├── Integração com interface de documentos
+└── Modo de desenvolvimento para testes
+
+FLUXO DE EXECUÇÃO:
+1. Inicialização e verificação de dependências
+2. Carregamento de dados de usuários e validação
+3. Gerenciamento do modelo (carregar existente ou treinar novo)
+4. Inicialização da webcam e reconhecimento em tempo real
+5. Validação múltipla e concessão de acesso
+6. Abertura da interface de documentos
+
+CONFIGURAÇÕES IMPORTANTES:
+├── LIMITE_CONFIANCA: Sensibilidade do reconhecimento
+├── MIN_TAMANHO_ROSTO: Tamanho mínimo para detecção
+├── MAX_TENTATIVAS_RECONHECIMENTO: Validações consecutivas necessárias
+├── USAR_DATA_AUGMENTATION: Controle de aumento de dados
+└── MODO_DESENVOLVEDOR: Bypass do reconhecimento para testes
+
+1.2 utils_admin.py - MÓDULO DE BACKEND
+--------------------------------------
+RESPONSABILIDADE: Centralização de todas as operações de backend e gerenciamento
+
+FUNCIONALIDADES PRINCIPAIS:
+├── Gerenciamento de dados JSON (carregar/salvar)
+├── Captura e processamento de imagens faciais
+├── Data augmentation para treinamento
+├── Validação de qualidade de imagens
+├── Operações CRUD de usuários
+├── Gerenciamento de fotos (adicionar/remover)
+└── Invalidação automática do modelo
+
+MÓDULOS INTERNOS:
+├── Manipulação de Dados JSON
+│   ├── carregar_dados_json(): Carregamento seguro de arquivos JSON
+│   └── salvar_dados_json(): Salvamento com tratamento de erros
+├── Data Augmentation
+│   ├── aplicar_data_augmentation(): Criação de variações de imagens
+│   └── validar_qualidade_imagem(): Validação de qualidade
+├── Captura de Imagens
+│   └── tirar_e_salvar_fotos(): Interface de captura com feedback visual
+└── Gerenciamento de Usuários
+    ├── criar_novo_usuario_via_gui(): Criação completa de usuários
+    ├── adicionar_mais_fotos(): Adição de fotos a usuários existentes
+    ├── gerenciar_fotos_usuario(): Gerenciamento avançado de fotos
+    └── excluir_usuario(): Remoção completa de usuários
+
+1.3 document_viewer.py - INTERFACE GRÁFICA
+------------------------------------------
+RESPONSABILIDADE: Interface gráfica principal e controle de acesso
+
+FUNCIONALIDADES PRINCIPAIS:
+├── Interface adaptativa baseada em níveis de acesso
+├── Visualização de documentos por nível
+├── Painel administrativo para Nível 3
+├── Design moderno e responsivo
+├── Visualização de arquivos em janelas modais
+└── Integração com funções administrativas
+
+COMPONENTES DA INTERFACE:
+├── Cabeçalho Dinâmico
+│   ├── Título do sistema
+│   ├── Nível de acesso do usuário
+│   └── Informações de status
+├── Área de Documentos
+│   ├── Lista rolável de documentos
+│   ├── Organização por pastas/níveis
+│   ├── Botões estilizados para cada documento
+│   └── Ícones e cores diferenciadas
+├── Painel Administrativo (Nível 3)
+│   ├── Seção "Ferramentas de Administração"
+│   ├── Botão "Criar Novo Usuário"
+│   ├── Botão "Adicionar Fotos"
+│   ├── Botão "Gerenciar Fotos"
+│   └── Botão "Excluir Usuário"
+└── Visualização de Arquivos
+    ├── Janelas modais para exibição
+    ├── Área de texto com scroll automático
+    ├── Barra de título com nome do arquivo
+    └── Conteúdo em modo somente leitura
+
+1.4 cadastro_app.py - LAUNCHER DE CADASTRO
+------------------------------------------
+RESPONSABILIDADE: Ponto de entrada alternativo para cadastro de usuários
+
+FUNCIONALIDADES:
+├── Verificação de dependências (utils_admin.py)
+├── Inicialização da interface de cadastro
+├── Execução independente do sistema principal
+└── Encerramento limpo após operação
+
+VANTAGENS:
+├── Cadastro rápido sem abrir sistema completo
+├── Interface dedicada apenas para cadastros
+├── Útil para testes e configuração inicial
+└── Mantém funcionalidade centralizada
+
+================================================================================
+2. ARQUIVOS DE CONFIGURAÇÃO E DADOS
+================================================================================
+
+2.1 haarcascade_frontalface_default.xml
+---------------------------------------
+TIPO: Classificador Haar Cascade pré-treinado
+FONTE: OpenCV
+PROPÓSITO: Detecção de faces frontais em imagens
+
+CARACTERÍSTICAS:
+├── Modelo pré-treinado para detecção de faces
+├── Otimizado para faces frontais
+├── Requerido para funcionamento do sistema
+└── Carregado automaticamente pelo app.py
+
+2.2 requirements.txt
+--------------------
+TIPO: Arquivo de dependências Python
+PROPÓSITO: Especificação das bibliotecas necessárias
+
+DEPENDÊNCIAS PRINCIPAIS:
+├── opencv-python: Processamento de imagens e visão computacional
+├── numpy: Manipulação de arrays multidimensionais
+├── tkinter: Interface gráfica (incluído no Python)
+└── json: Manipulação de dados JSON (incluído no Python)
+
+================================================================================
+3. ESTRUTURA DE DIRETÓRIOS E ARQUIVOS DE DADOS
+================================================================================
+
+3.1 Usuarios_Cadastrados/
+-------------------------
+userData.json:
+├── Estrutura: {cpf: {nome, id_unico}}
+├── Propósito: Mapeamento CPF → dados pessoais
+├── Chave primária: CPF do usuário
+└── Dados: Nome completo e ID único
+
+validation.json:
+├── Estrutura: {nivel: {pessoas: [lista_de_cpfs]}}
+├── Propósito: Controle de acesso por níveis
+├── Níveis: "Nivel 1", "Nivel 2", "Nivel 3"
+└── Funcionalidade: Define permissões de acesso
+
+3.2 Modelo_Treinamento/
+-----------------------
+modelo_lbph.yml:
+├── Tipo: Modelo treinado do OpenCV
+├── Algoritmo: LBPH (Local Binary Patterns Histograms)
+├── Conteúdo: Padrões faciais aprendidos
+└── Uso: Reconhecimento de identidades
+
+mapeamento_ids.json:
+├── Estrutura: {ids_treinamento: [lista_de_ids]}
+├── Propósito: Correlação rótulos numéricos → IDs únicos
+├── Ordem: Sequência exata do treinamento
+└── Importância: Essencial para identificação correta
+
+3.3 faces/
+----------
+ESTRUTURA:
+faces/
+├── [id_unico_1]/
+│   ├── foto1.jpg
+│   ├── foto2.jpg
+│   └── ...
+├── [id_unico_2]/
+│   └── ...
+└── ...
+
+CARACTERÍSTICAS:
+├── Uma pasta por usuário (ID único)
+├── Múltiplas fotos por usuário (recomendado: 10-30)
+├── Formato: JPG, PNG, JPEG
+├── Qualidade: Validada automaticamente
+└── Processamento: Data augmentation aplicado
+
+3.4 documentos/
+---------------
+ESTRUTURA:
+documentos/
+├── nivel_1/
+│   ├── documento1.txt
+│   └── documento2.txt
+├── nivel_2/
+│   └── documento3.txt
+└── nivel_3/
+    └── documento4.txt
+
+FUNCIONALIDADE:
+├── Organização por níveis de acesso
+├── Formato: Arquivos de texto (.txt)
+├── Acesso: Baseado no nível do usuário
+└── Visualização: Interface gráfica integrada
+
+================================================================================
+4. INTEGRAÇÃO ENTRE ARQUIVOS
+================================================================================
+
+4.1 FLUXO DE DADOS
+------------------
+app.py
+├── Carrega dados de: userData.json, validation.json
+├── Usa classificador: haarcascade_frontalface_default.xml
+├── Treina/carrega modelo: modelo_lbph.yml, mapeamento_ids.json
+├── Processa imagens de: faces/
+└── Abre interface: document_viewer.py
+
+document_viewer.py
+├── Importa funções de: utils_admin.py
+├── Exibe documentos de: documentos/
+├── Consulta dados de: userData.json, validation.json
+└── Chama operações de: utils_admin.py
+
+utils_admin.py
+├── Manipula dados de: userData.json, validation.json
+├── Processa imagens de: faces/
+├── Invalida modelo: modelo_lbph.yml, mapeamento_ids.json
+└── Usa classificador: haarcascade_frontalface_default.xml
+
+4.2 DEPENDÊNCIAS CRÍTICAS
+-------------------------
+├── haarcascade_frontalface_default.xml: Obrigatório para detecção
+├── utils_admin.py: Obrigatório para operações de backend
+├── userData.json: Obrigatório para dados de usuários
+├── validation.json: Obrigatório para controle de acesso
+└── faces/: Obrigatório para treinamento do modelo
+
+================================================================================
+5. CONSIDERAÇÕES DE MANUTENÇÃO
+================================================================================
+
+5.1 BACKUP E SEGURANÇA
+----------------------
+ARQUIVOS CRÍTICOS PARA BACKUP:
+├── Usuarios_Cadastrados/ (dados dos usuários)
+├── faces/ (imagens de treinamento)
+├── Modelo_Treinamento/ (modelo treinado)
+└── documentos/ (documentos do sistema)
+
+5.2 EXPANSÃO DO SISTEMA
+-----------------------
+PARA ADICIONAR NOVOS USUÁRIOS:
+├── Executar: python cadastro_app.py
+├── Ou usar: Interface administrativa (Nível 3)
+└── Ou chamar: criar_novo_usuario_via_gui()
+
+PARA ADICIONAR NOVOS DOCUMENTOS:
+├── Criar arquivo na pasta: documentos/nivel_X/
+├── Formato: Arquivo de texto (.txt)
+└── Acesso: Automático baseado no nível
+
+PARA MODIFICAR NÍVEIS DE ACESSO:
+├── Editar: validation.json
+├── Estrutura: {nivel: {pessoas: [cpfs]}}
+└── Efeito: Imediato na próxima execução
+
+================================================================================

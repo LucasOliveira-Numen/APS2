@@ -1,44 +1,270 @@
------Explicação Detalhada do Projeto de Reconhecimento Facial em Python-----
-Este documento explica o funcionamento do projeto de reconhecimento facial, que utiliza a biblioteca OpenCV e uma abordagem baseada em dados de treinamento locais.
+================================================================================
+                    SISTEMA DE RECONHECIMENTO FACIAL - FUNCIONAMENTO
+================================================================================
 
----Visão Geral da Arquitetura---
-O projeto é dividido em scripts principais, um módulo de utilidades e arquivos de dados, que trabalham juntos para criar um sistema completo e modular:
+Este documento apresenta uma visão geral da arquitetura e funcionamento do
+sistema completo, explicando como os diferentes módulos interagem para
+criar uma solução integrada de controle de acesso baseada em reconhecimento facial.
 
-- **app.py:** O script principal que inicia o reconhecimento facial via webcam. É o ponto de entrada do sistema.
-- **document_viewer.py:** A interface gráfica que exibe os documentos para usuários autorizados. Para usuários de Nível 3, este painel também se torna a tela de administração.
-- **cadastro_app.py:** Um script que serve como um atalho para iniciar a interface de cadastro de novas pessoas.
-- **utils_admin.py:** Um módulo centralizado que contém todas as funções de gerenciamento (criar usuário, adicionar fotos, excluir) e de manipulação de dados. Sua função é evitar a repetição de código e organizar a lógica do projeto.
-- **Arquivos de Dados:** Pastas como `Usuarios_Cadastrados` e `Modelo_Treinamento` organizam os dados dos usuários e o modelo gerado pelo sistema, respectivamente.
+================================================================================
+1. ARQUITETURA GERAL DO SISTEMA
+================================================================================
 
----Como o Algoritmo Funciona (app.py)---
-O processo de reconhecimento facial foi otimizado para ser mais eficiente.
+O sistema é construído seguindo princípios de modularidade e separação de
+responsabilidades, dividindo-se em componentes especializados:
 
-1. Etapa de Inicialização:
-- Ao ser executado, o `app.py` primeiro verifica se um modelo treinado (`modelo_lbph.yml`) já existe na pasta `Modelo_Treinamento`.
-- **Se o modelo existe:** Ele é carregado instantaneamente, e o sistema fica pronto para o reconhecimento.
-- **Se o modelo não existe:** O sistema inicia a etapa de treinamento a seguir.
+1.1 MÓDULOS PRINCIPAIS
+----------------------
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   app.py        │    │ document_viewer │    │ cadastro_app.py │
+│   (Core)        │◄──►│ .py             │◄──►│ (Launcher)      │
+│                 │    │ (Interface)     │    │                 │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         └───────────────────────┼───────────────────────┘
+                                 │
+                    ┌─────────────────┐
+                    │ utils_admin.py  │
+                    │ (Backend)       │
+                    └─────────────────┘
 
-2. Etapa de Treinamento (executada apenas quando necessário):
-- Coleta de Dados: O script lê o arquivo `Usuarios_Cadastrados/userData.json` para obter os IDs únicos de cada pessoa. Em seguida, ele percorre a pasta `faces` para ler as imagens de cada usuário.
-- Detecção e Processamento: Usando o `cv2.CascadeClassifier`, o sistema detecta o rosto em cada imagem, o converte para escala de cinza e o redimensiona para um tamanho padrão.
-- Treinamento do Modelo: O modelo de reconhecimento `cv2.face.LBPHFaceRecognizer_create()` é então treinado com base nos padrões de textura extraídos dos rostos.
-- **Salvamento do Modelo:** Após o treinamento, o modelo é salvo na pasta `Modelo_Treinamento`, pronto para ser reutilizado nas próximas execuções do programa.
+1.2 RESPONSABILIDADES DOS MÓDULOS
+---------------------------------
+• app.py: Orquestração principal, treinamento e reconhecimento
+• document_viewer.py: Interface gráfica e controle de acesso
+• utils_admin.py: Operações de backend e gerenciamento de dados
+• cadastro_app.py: Ponto de entrada alternativo para cadastros
 
-3. Etapa de Reconhecimento (função `reconhecer_faces_webcam`):
-- O script inicializa a webcam e começa a analisar o vídeo em tempo real, quadro a quadro.
-- Para cada rosto detectado em um quadro, o modelo LBPH faz uma predição, retornando um ID e um valor de confiança.
-- Se a confiança for alta (valor baixo), o script usa o ID para consultar os arquivos `userData.json` e `validation.json` para obter o nome e o nível de acesso do usuário, exibindo essas informações na tela.
+================================================================================
+2. FLUXO DE EXECUÇÃO PRINCIPAL
+================================================================================
 
----Funcionalidades de Gerenciamento de Usuários (via `document_viewer.py`)---
-A interface `document_viewer.py` serve como o painel de administração para usuários de Nível 3. Os botões de gerenciamento nesta tela chamam as funções correspondentes do módulo `utils_admin.py`.
-- **Criação de Usuário:** Inicia a interface para cadastrar uma nova pessoa e capturar suas fotos.
-- **Adição de Fotos:** Permite adicionar mais fotos a um perfil existente para melhorar a precisão do reconhecimento.
-- **Exclusão de Usuário:** Remove permanentemente o perfil de um usuário, incluindo seus dados e fotos.
+2.1 INICIALIZAÇÃO DO SISTEMA (app.py)
+-------------------------------------
+ETAPA 1: Verificação de Dependências
+├── Verifica existência do arquivo haarcascade_frontalface_default.xml
+├── Carrega classificador Haar Cascade
+└── Define caminhos para diretórios e arquivos de dados
 
-Toda vez que uma dessas ações de gerenciamento é concluída com sucesso, o modelo de treinamento salvo (`modelo_lbph.yml`) é automaticamente excluído. Isso força o `app.py` a criar um novo modelo atualizado na próxima vez que for executado.
+ETAPA 2: Carregamento de Dados
+├── Carrega dados de usuários (userData.json)
+├── Carrega configurações de validação (validation.json)
+└── Verifica existência de usuários cadastrados
 
----Estrutura de Dados (JSON)---
-Os arquivos JSON, localizados na pasta `Usuarios_Cadastrados`, são essenciais para a organização dos dados:
-- **userData.json:** Atua como um banco de dados de usuários. A chave é o CPF, associado ao nome e a um ID único usado para a pasta de fotos.
-- **validation.json:** Funciona como um controle de acesso. As chaves são os níveis ("Nivel 1", etc.), associadas a uma lista de CPFs com essa permissão.
-- Essa separação garante que o ID único seja usado para o treinamento, evitando a exposição de dados pessoais no sistema de arquivos.
+ETAPA 3: Gerenciamento do Modelo
+├── Verifica existência de modelo treinado (modelo_lbph.yml)
+├── Se existe: Carrega modelo existente
+└── Se não existe: Executa processo de treinamento
+
+2.2 PROCESSO DE TREINAMENTO (Quando Necessário)
+-----------------------------------------------
+ETAPA 1: Coleta de Dados
+├── Lê IDs únicos dos usuários do userData.json
+├── Navega pela pasta 'faces' coletando imagens
+└── Aplica validação de qualidade nas imagens
+
+ETAPA 2: Processamento de Imagens
+├── Detecta faces em cada imagem
+├── Extrai regiões de interesse (ROI)
+├── Redimensiona para tamanho padrão (200x200)
+├── Aplica data augmentation (se habilitado)
+└── Converte para escala de cinza
+
+ETAPA 3: Treinamento do Modelo
+├── Cria instância do reconhecedor LBPH
+├── Treina modelo com faces e rótulos
+├── Salva modelo em modelo_lbph.yml
+└── Salva mapeamento de IDs em mapeamento_ids.json
+
+2.3 RECONHECIMENTO EM TEMPO REAL
+--------------------------------
+ETAPA 1: Inicialização da Webcam
+├── Abre captura de vídeo (cv2.VideoCapture(0))
+├── Configura parâmetros de detecção otimizados
+└── Inicializa variáveis de controle
+
+ETAPA 2: Loop Principal de Reconhecimento
+├── Captura frame da webcam
+├── Converte para escala de cinza
+├── Detecta faces com Haar Cascade
+├── Para cada face detectada:
+│   ├── Extrai ROI da face
+│   ├── Aplica predição LBPH
+│   ├── Valida nível de confiança
+│   ├── Consulta dados do usuário
+│   └── Aplica validação múltipla
+└── Exibe informações na tela
+
+ETAPA 3: Concessão de Acesso
+├── Após validação múltipla bem-sucedida
+├── Congela tela por 2 segundos com timer
+├── Fecha webcam e janelas de reconhecimento
+└── Abre interface de documentos (document_viewer.py)
+
+================================================================================
+3. SISTEMA DE CONTROLE DE ACESSO
+================================================================================
+
+3.1 ESTRUTURA DE NÍVEIS
+-----------------------
+NÍVEL 1: Acesso Básico
+├── Documentos: nivel_1/
+├── Funcionalidades: Visualização de documentos básicos
+└── Interface: Apenas botões de documentos
+
+NÍVEL 2: Acesso Intermediário
+├── Documentos: nivel_1/, nivel_2/
+├── Funcionalidades: Visualização de documentos expandida
+└── Interface: Botões de documentos + informações adicionais
+
+NÍVEL 3: Acesso Administrativo
+├── Documentos: nivel_1/, nivel_2/, nivel_3/
+├── Funcionalidades: Acesso total + ferramentas administrativas
+└── Interface: Todos os documentos + painel administrativo
+
+3.2 MAPEAMENTO DE PERMISSÕES
+----------------------------
+ARQUIVO: validation.json
+ESTRUTURA:
+{
+  "Nivel 1": {
+    "pessoas": ["cpf1", "cpf2", ...]
+  },
+  "Nivel 2": {
+    "pessoas": ["cpf3", "cpf4", ...]
+  },
+  "Nivel 3": {
+    "pessoas": ["cpf5", "cpf6", ...]
+  }
+}
+
+================================================================================
+4. SISTEMA DE GERENCIAMENTO DE USUÁRIOS
+================================================================================
+
+4.1 OPERAÇÕES DISPONÍVEIS
+-------------------------
+CRIAÇÃO DE USUÁRIO:
+├── Interface para inserção de dados (nome, CPF)
+├── Geração automática de ID único (UUID)
+├── Captura de fotos com feedback visual
+├── Validação de qualidade das imagens
+└── Salvamento em arquivos JSON
+
+ADIÇÃO DE FOTOS:
+├── Seleção de usuário existente
+├── Captura de fotos adicionais
+├── Validação e processamento
+└── Atualização do modelo (invalidação)
+
+GERENCIAMENTO DE FOTOS:
+├── Visualização de quantidade de fotos
+├── Opções para manter 30, 10 ou 5 fotos mais recentes
+├── Remoção automática de fotos antigas
+└── Informações sobre fotos mantidas/removidas
+
+EXCLUSÃO DE USUÁRIO:
+├── Confirmação de exclusão
+├── Remoção de dados JSON
+├── Exclusão de pasta de fotos
+├── Atualização de níveis de acesso
+└── Invalidação do modelo
+
+4.2 INVALIDAÇÃO AUTOMÁTICA DO MODELO
+------------------------------------
+Sempre que dados são alterados:
+├── Modelo existente é removido (modelo_lbph.yml)
+├── Mapeamento de IDs é removido (mapeamento_ids.json)
+├── Próxima execução força retreinamento
+└── Garante consistência dos dados
+
+================================================================================
+5. ESTRUTURA DE DADOS E PERSISTÊNCIA
+================================================================================
+
+5.1 ARQUIVOS DE DADOS
+---------------------
+userData.json:
+├── Chave: CPF do usuário
+├── Valor: {nome, id_unico}
+└── Propósito: Mapeamento CPF → dados pessoais
+
+validation.json:
+├── Chave: Nível de acesso
+├── Valor: {pessoas: [lista_de_cpfs]}
+└── Propósito: Controle de permissões
+
+mapeamento_ids.json:
+├── Chave: "ids_treinamento"
+├── Valor: [lista_de_ids_na_ordem_de_treinamento]
+└── Propósito: Correlação rótulos numéricos → IDs únicos
+
+5.2 ESTRUTURA DE DIRETÓRIOS
+---------------------------
+faces/
+├── [id_unico_1]/
+│   ├── foto1.jpg
+│   ├── foto2.jpg
+│   └── ...
+├── [id_unico_2]/
+│   └── ...
+└── ...
+
+documentos/
+├── nivel_1/
+│   ├── documento1.txt
+│   └── documento2.txt
+├── nivel_2/
+│   └── documento3.txt
+└── nivel_3/
+    └── documento4.txt
+
+Modelo_Treinamento/
+├── modelo_lbph.yml
+└── mapeamento_ids.json
+
+================================================================================
+6. MODOS DE OPERAÇÃO
+================================================================================
+
+6.1 MODO NORMAL
+---------------
+Execução: python app.py (com MODO_DESENVOLVEDOR = False)
+Fluxo: Reconhecimento facial → Validação → Acesso a documentos
+
+6.2 MODO DESENVOLVIMENTO
+------------------------
+Execução: python app.py (com MODO_DESENVOLVEDOR = True)
+Fluxo: Bypass do reconhecimento → Acesso direto ao Nível 3
+
+6.3 MODO CADASTRO INDEPENDENTE
+------------------------------
+Execução: python cadastro_app.py
+Fluxo: Interface de cadastro → Captura de fotos → Salvamento
+
+6.4 MODO VISUALIZAÇÃO DIRETA
+----------------------------
+Execução: python document_viewer.py
+Fluxo: Seleção de nível → Acesso direto à interface
+
+================================================================================
+7. CONSIDERAÇÕES DE SEGURANÇA E PERFORMANCE
+================================================================================
+
+7.1 SEGURANÇA
+-------------
+├── Dados armazenados localmente (sem transmissão externa)
+├── Validação múltipla de reconhecimento
+├── Controle de acesso baseado em níveis
+├── Invalidação automática após alterações
+└── Logs de operações para auditoria
+
+7.2 PERFORMANCE
+---------------
+├── Carregamento de modelo existente (evita retreinamento)
+├── Parâmetros otimizados para detecção
+├── Data augmentation configurável
+├── Validação de qualidade de imagens
+└── Interface responsiva e otimizada
+
+================================================================================

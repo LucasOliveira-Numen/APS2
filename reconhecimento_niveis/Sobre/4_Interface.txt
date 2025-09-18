@@ -1,46 +1,229 @@
------ Análise Detalhada da Interface Gráfica (document_viewer.py) -----
+================================================================================
+                    SISTEMA DE RECONHECIMENTO FACIAL - INTERFACE
+================================================================================
 
-Este documento detalha a construção da interface gráfica (GUI) do projeto, responsável por exibir os documentos e as ferramentas administrativas. A interface foi desenvolvida utilizando a biblioteca nativa do Python, Tkinter, por sua simplicidade e por já vir inclusa com a linguagem.
+Este documento apresenta uma análise detalhada da interface gráfica do sistema,
+explicando sua arquitetura, componentes, funcionalidades e implementação
+técnica utilizando a biblioteca Tkinter.
 
-[cite_start]A interface tem um design dinâmico, adaptando-se ao nível de acesso do usuário que foi autenticado pelo sistema de reconhecimento facial[cite: 4].
+================================================================================
+1. ARQUITETURA DA INTERFACE GRÁFICA
+================================================================================
 
---- Componentes e Lógica da Construção ---
+1.1 TECNOLOGIA BASE
+-------------------
+BIBLIOTECA: Tkinter (biblioteca nativa do Python)
+VANTAGENS:
+├── Inclusa por padrão no Python
+├── Simplicidade de implementação
+├── Compatibilidade multiplataforma
+├── Suporte a widgets avançados
+└── Facilidade de manutenção
 
-A construção da janela principal é orquestrada pela função `mostrar_documentos(nivel_acesso)`.
+1.2 PRINCÍPIOS DE DESIGN
+------------------------
+DESIGN ADAPTATIVO:
+├── Interface se adapta ao nível de acesso do usuário
+├── Cores e elementos visuais diferenciados por nível
+├── Funcionalidades dinâmicas baseadas em permissões
+└── Layout responsivo e moderno
 
-1.  **Criação da Janela Principal:**
-    * A base da interface é uma janela `tk.Tk()`, que funciona como o contêiner principal.
-    * Propriedades como título (`janela.title()`) e tamanho inicial (`janela.geometry()`) são definidas para dar uma aparência consistente.
+SEGURANÇA VISUAL:
+├── Controle de acesso baseado em níveis
+├── Ferramentas administrativas apenas para Nível 3
+├── Visualização de documentos por permissão
+└── Interface de usuário intuitiva e clara
 
-2.  **Estrutura de Acesso a Documentos:**
-    * A lógica de permissões é controlada por um dicionário chamado `mapa_niveis`. [cite_start]Este mapa associa cada nível de acesso (ex: "Nivel 2") a uma lista de pastas de documentos que aquele nível pode visualizar (ex: ["nivel_1", "nivel_2"])[cite: 32].
-    * Isso permite que o sistema exiba dinamicamente o conteúdo apropriado, garantindo que um usuário de Nível 1 não veja os documentos de Nível 2 ou 3.
+================================================================================
+2. COMPONENTES PRINCIPAIS DA INTERFACE
+================================================================================
 
-3.  **Criação de uma Lista Rolável (Scrollable List):**
-    * Para exibir uma lista de arquivos que pode ser maior que a altura da janela, foi implementado um widget de lista com barra de rolagem. Esta é a parte mais complexa da interface e foi construída com três componentes do Tkinter trabalhando juntos:
-        * **`tk.Canvas`**: Funciona como a área visível onde o conteúdo será desenhado.
-        * **`tk.Scrollbar`**: A barra de rolagem vertical, que é vinculada diretamente ao `Canvas`.
-        * **`tk.Frame`**: Um frame interno (`scrollable_frame`) é colocado *dentro* do Canvas. Este frame é o verdadeiro contêiner para todos os botões de arquivo. Ele pode crescer verticalmente o quanto for necessário.
-    * A "mágica" acontece ao vincular o tamanho do frame interno à região de rolagem do Canvas. Sempre que novos botões são adicionados ao frame e seu tamanho aumenta, o Canvas atualiza sua área rolável, permitindo que a `Scrollbar` percorra todo o conteúdo.
+2.1 JANELA PRINCIPAL (mostrar_documentos)
+-----------------------------------------
+RESPONSABILIDADE: Container principal da interface
 
-4.  **Exibição dos Arquivos:**
-    * O programa percorre as pastas de documentos permitidas para o nível de acesso do usuário.
-    * Para cada pasta, um `tk.Label` com o nome da pasta é criado para servir como um título de seção.
-    * [cite_start]Em seguida, para cada arquivo encontrado dentro da pasta, um `tk.Button` é criado[cite: 33]. O texto do botão é o nome do arquivo.
-    * O comando de cada botão (`command=`) é associado à função `abrir_arquivo`, utilizando uma função `lambda` para garantir que o caminho correto do arquivo seja passado como argumento no momento do clique.
+PROPRIEDADES:
+├── Título: "🔐 Sistema de Controle de Acesso - Visualizador de Documentos"
+├── Tamanho: 800x600 pixels (redimensionável)
+├── Cor de fundo: #ecf0f1 (cinza claro)
+├── Posicionamento: Centralizado na tela
+└── Comportamento: Resizable para adaptação
 
-5.  **Painel de Administração (Exclusivo para Nível 3):**
-    * O código contém uma verificação condicional: `if nivel_acesso == "Nivel 3":`.
-    * [cite_start]Se o usuário for do Nível 3, um `tk.LabelFrame` (um container com um título) chamado "Ferramentas de Administração" é criado e exibido na parte inferior da janela[cite: 5, 11].
-    * Dentro deste frame, três botões são adicionados:
-        * [cite_start]**"Criar Novo Usuário"**: Chama a função `criar_novo_usuario_via_gui`[cite: 34].
-        * [cite_start]**"Adicionar Fotos"**: Chama a função `adicionar_mais_fotos`[cite: 35].
-        * [cite_start]**"Excluir Usuário"**: Chama a função `excluir_usuario`[cite: 36].
-    * É importante notar que estes botões não contêm a lógica em si; eles apenas chamam as funções correspondentes que foram importadas do módulo central `utils_admin.py`, mantendo a interface limpa e organizada.
+ESTRUTURA INTERNA:
+├── Frame Principal (container base)
+├── Cabeçalho (título e informações)
+├── Área de Documentos (lista rolável)
+├── Painel Administrativo (Nível 3)
+└── Botão de Sair
 
-6.  **Janela de Visualização de Arquivo (Função `abrir_arquivo`):**
-    * Quando um botão de arquivo é clicado, esta função cria uma nova janela (`tk.Toplevel`) que aparece sobre a janela principal.
-    * Dentro desta nova janela, um widget `scrolledtext.ScrolledText` é usado. Ele é ideal para exibir o conteúdo de arquivos de texto, pois já vem com uma barra de rolagem embutida.
-    * Após inserir o conteúdo do arquivo, o estado do widget de texto é configurado para `'disabled'`, o que o torna um campo de apenas leitura, impedindo que o usuário altere o conteúdo do documento.
+2.2 CABEÇALHO DINÂMICO
+----------------------
+FUNCIONALIDADE: Exibe informações contextuais baseadas no nível de acesso
 
-[cite_start]Esta abordagem modular e dinâmica resulta em uma interface segura e funcional que se adapta automaticamente às permissões do usuário, fornecendo funcionalidades administrativas apenas para aqueles com a autorização necessária[cite: 11, 32].
+COMPONENTES:
+├── Título Principal
+│   ├── Texto: "🔐 Sistema de Controle de Acesso"
+│   ├── Fonte: Segoe UI, 16pt, negrito
+│   └── Cor: #2c3e50 (azul escuro)
+├── Subtítulo Dinâmico
+│   ├── Nível 1: "📄 Acesso Básico - Documentos Fundamentais"
+│   ├── Nível 2: "📋 Acesso Intermediário - Documentos Expandidos"
+│   └── Nível 3: "⚙️ Acesso Administrativo - Controle Total"
+└── Informações de Status
+    ├── Nível de acesso atual
+    ├── Permissões disponíveis
+    └── Status do sistema
+
+2.3 ÁREA DE DOCUMENTOS
+----------------------
+FUNCIONALIDADE: Lista rolável de documentos organizados por nível
+
+IMPLEMENTAÇÃO TÉCNICA:
+├── Canvas Principal
+│   ├── Widget: tk.Canvas
+│   ├── Função: Área visível para desenho
+│   └── Configuração: Scrollable region
+├── Scrollbar Vertical
+│   ├── Widget: tk.Scrollbar
+│   ├── Função: Controle de rolagem
+│   └── Vinculação: Direta ao Canvas
+└── Frame Interno
+    ├── Widget: tk.Frame (scrollable_frame)
+    ├── Função: Container para botões de documentos
+    └── Comportamento: Cresce verticalmente conforme necessário
+
+LÓGICA DE ROLAGEM:
+1. Frame interno é colocado dentro do Canvas
+2. Canvas é configurado para rolar o frame interno
+3. Scrollbar é vinculada ao Canvas
+4. Quando frame cresce, Canvas atualiza área rolável
+5. Scrollbar permite navegação por todo o conteúdo
+
+================================================================================
+3. IMPLEMENTAÇÃO DE DOCUMENTOS
+================================================================================
+
+3.1 GERAÇÃO DINÂMICA DE BOTÕES
+------------------------------
+PROCESSO:
+1. Iteração pelas pastas permitidas para o nível
+2. Criação de label de seção para cada pasta
+3. Leitura de arquivos dentro de cada pasta
+4. Criação de botão para cada arquivo
+5. Associação de comando com função abrir_arquivo
+
+ESTILIZAÇÃO DOS BOTÕES:
+├── Fonte: Segoe UI, 10pt, negrito
+├── Cores por nível:
+│   ├── Nível 1: #3498db (azul)
+│   ├── Nível 2: #e67e22 (laranja)
+│   └── Nível 3: #27ae60 (verde)
+├── Efeitos: Hover, active states
+├── Ícones: Emojis para identificação visual
+└── Layout: Padding e espaçamento consistentes
+
+3.2 FUNÇÃO abrir_arquivo
+-----------------------
+RESPONSABILIDADE: Exibição de documentos em janelas modais
+
+IMPLEMENTAÇÃO:
+├── Criação de janela Toplevel
+├── Configuração de propriedades (título, tamanho, posição)
+├── Implementação de barra de título estilizada
+├── Uso de ScrolledText para conteúdo
+├── Botão de fechamento estilizado
+└── Modo somente leitura
+
+================================================================================
+4. PAINEL ADMINISTRATIVO (Nível 3)
+================================================================================
+
+4.1 ESTRUTURA DO PAINEL
+-----------------------
+CONTAINER: tk.LabelFrame
+├── Título: "⚙️ Ferramentas de Administração"
+├── Estilo: Borda destacada com título
+├── Posicionamento: Parte inferior da janela
+└── Visibilidade: Apenas para usuários Nível 3
+
+4.2 BOTÕES ADMINISTRATIVOS
+--------------------------
+LAYOUT: Frame horizontal com botões distribuídos
+
+BOTÃO 1: "👤 Criar Novo Usuário"
+├── Função: criar_novo_usuario_via_gui()
+├── Cor: #27ae60 (verde)
+├── Ação: Inicia processo completo de cadastro
+└── Resultado: Novo usuário com fotos capturadas
+
+BOTÃO 2: "📷 Adicionar Fotos"
+├── Função: adicionar_mais_fotos()
+├── Cor: #3498db (azul)
+├── Ação: Adiciona fotos a usuário existente
+└── Resultado: Melhoria na precisão do reconhecimento
+
+BOTÃO 3: "⚙️ Gerenciar Fotos"
+├── Função: gerenciar_fotos_usuario()
+├── Cor: #f39c12 (laranja)
+├── Ação: Gerencia quantidade de fotos por usuário
+└── Resultado: Otimização de performance e armazenamento
+
+BOTÃO 4: "🗑️ Excluir Usuário"
+├── Função: excluir_usuario()
+├── Cor: #e74c3c (vermelho)
+├── Ação: Remove usuário completamente
+└── Resultado: Limpeza de dados e fotos
+
+================================================================================
+5. DESIGN E EXPERIÊNCIA DO USUÁRIO
+================================================================================
+
+5.1 ESQUEMA DE CORES
+--------------------
+PALETA PRINCIPAL:
+├── Fundo: #ecf0f1 (cinza claro)
+├── Texto: #2c3e50 (azul escuro)
+├── Destaque: #3498db (azul)
+└── Acentos: Cores diferenciadas por nível
+
+CORES POR NÍVEL:
+├── Nível 1: #3498db (azul) - Profissional e confiável
+├── Nível 2: #e67e22 (laranja) - Energia e dinamismo
+└── Nível 3: #27ae60 (verde) - Autoridade e controle
+
+5.2 TIPOGRAFIA
+--------------
+FONTE PRINCIPAL: Segoe UI
+├── Títulos: 16pt, negrito
+├── Subtítulos: 12pt, negrito
+├── Botões: 10pt, negrito
+├── Texto: 11pt, normal
+└── Consistência: Mantida em toda a interface
+
+================================================================================
+6. FUNCIONALIDADES AVANÇADAS
+================================================================================
+
+6.1 ADAPTAÇÃO DINÂMICA
+----------------------
+MECANISMO:
+├── Função recebe parâmetro nivel_acesso
+├── Interface se adapta baseada no nível
+├── Componentes são criados condicionalmente
+└── Permissões são aplicadas automaticamente
+
+BENEFÍCIOS:
+├── Interface única para todos os níveis
+├── Manutenção simplificada
+├── Consistência visual
+└── Segurança integrada
+
+6.2 INTEGRAÇÃO COM BACKEND
+--------------------------
+ARQUITETURA:
+├── Interface (document_viewer.py) → Funções (utils_admin.py)
+├── Separação clara de responsabilidades
+├── Reutilização de código centralizado
+└── Manutenção simplificada
+
+================================================================================

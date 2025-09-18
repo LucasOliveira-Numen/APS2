@@ -1,68 +1,85 @@
-# Script Principal do Sistema de Reconhecimento Facial
-# (Versão Final, Corrigida e Totalmente Comentada)
+# Sistema de Reconhecimento Facial com Controle de Acesso por Níveis
+#
+# Este módulo implementa um sistema completo de reconhecimento facial que utiliza
+# o algoritmo LBPH (Local Binary Patterns Histograms) para identificar usuários
+# e conceder acesso a documentos baseado em níveis de autorização.
 #
 # Fluxo de Execução:
-# 1. Verifica se o "Modo de Desenvolvimento" está ativo para pular o reconhecimento.
-# 2. Se não, tenta carregar um modelo de reconhecimento previamente treinado.
-# 3. Se não encontrar o modelo, treina um novo com base nas fotos na pasta 'faces'.
-# 4. Inicia a webcam para o reconhecimento em tempo real.
-# 5. Ao reconhecer um rosto autorizado, concede acesso e abre o visualizador de documentos.
+# 1. Verificação do modo de desenvolvimento (opcional)
+# 2. Carregamento de modelo existente ou treinamento de novo modelo
+# 3. Inicialização da captura de vídeo para reconhecimento em tempo real
+# 4. Validação de identidade e concessão de acesso baseada em níveis
+# 5. Abertura da interface de visualização de documentos
 
 # --- Importação das Bibliotecas ---
-import cv2                      # OpenCV: A principal biblioteca para visão computacional.
-import os                       # Para interagir com o sistema operacional (ler arquivos e pastas).
-import numpy as np              # Usada para trabalhar com arrays de imagens de forma eficiente.
-import sys                      # Para interações com o sistema, como encerrar o programa.
-import unicodedata              # Usado para normalizar texto e remover acentos.
-import time                     # Para controlar o tempo, como o timer de 3 segundos para acesso.
-import json                     # Necessário para salvar o mapa de IDs do modelo.
+import cv2                      # OpenCV: Biblioteca principal para processamento de imagens e visão computacional
+import os                       # Módulo para operações do sistema de arquivos e diretórios
+import numpy as np              # Biblioteca para manipulação eficiente de arrays multidimensionais
+import sys                      # Módulo para interação com o interpretador Python e sistema operacional
+import unicodedata              # Módulo para normalização de caracteres Unicode (remoção de acentos)
+import time                     # Módulo para operações relacionadas ao tempo e cronometragem
+import json                     # Módulo para serialização e deserialização de dados JSON
 
 # --- Importações dos Módulos do Projeto ---
-from utils_admin import carregar_dados_json, salvar_dados_json  # Funções centralizadas para manipular JSON.
-from document_viewer import mostrar_documentos                # Função que cria a interface de visualização.
+from utils_admin import carregar_dados_json, salvar_dados_json  # Funções utilitárias para manipulação de dados JSON
+from document_viewer import mostrar_documentos                # Interface gráfica para visualização de documentos
 
 # --- Configurações Iniciais e Verificação de Arquivos ---
-# Define o diretório base do projeto de forma dinâmica.
+# Define o diretório base do projeto de forma dinâmica para garantir portabilidade
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
-# Caminho para o classificador de faces (Haar Cascade).
+# Configuração do classificador Haar Cascade para detecção de faces
 face_cascade_path = os.path.join(base_dir, 'haarcascade_frontalface_default.xml')
 if not os.path.exists(face_cascade_path):
     print(f"Erro: O arquivo '{os.path.basename(face_cascade_path)}' não foi encontrado. O programa não pode continuar.")
     exit()
 classificador_de_faces = cv2.CascadeClassifier(face_cascade_path)
 
-# Caminhos para as pastas e arquivos de dados, apontando para as subpastas organizadas.
-diretorio_de_faces = os.path.join(base_dir, 'faces')
-diretorio_modelo = os.path.join(base_dir, 'Modelo_Treinamento')
-diretorio_usuarios = os.path.join(base_dir, 'Usuarios_Cadastrados')
+# Definição dos diretórios e arquivos do sistema
+diretorio_de_faces = os.path.join(base_dir, 'faces')                    # Pasta contendo as imagens de treinamento
+diretorio_modelo = os.path.join(base_dir, 'Modelo_Treinamento')         # Pasta para armazenar o modelo treinado
+diretorio_usuarios = os.path.join(base_dir, 'Usuarios_Cadastrados')     # Pasta com dados dos usuários
 
+# Caminhos específicos para arquivos de dados
 caminho_modelo_salvo = os.path.join(diretorio_modelo, 'modelo_lbph.yml')
 caminho_mapa_ids = os.path.join(diretorio_modelo, 'mapeamento_ids.json')
 caminho_json_validacao = os.path.join(diretorio_usuarios, 'validation.json')
 caminho_json_dados_usuario = os.path.join(diretorio_usuarios, 'userData.json')
 
-# Limite de confiança: quanto MENOR o valor, mais CONFIANTE o sistema está.
-# Pense nisso como a "distância" entre o rosto visto e os rostos no banco de dados.
-# Distância pequena = rostos muito parecidos.
-# Ajustado para ser mais restritivo e reduzir falsos positivos
-LIMITE_CONFIANCA = 50  # Mais restritivo que antes (era 50)
+# --- Parâmetros de Configuração do Sistema ---
 
-# Configurações adicionais para validação
-MIN_TAMANHO_ROSTO = 80  # Tamanho mínimo do rosto detectado (pixels) - reduzido para melhor detecção
-MAX_TENTATIVAS_RECONHECIMENTO = 2  # Número de tentativas consecutivas necessárias - reduzido para ser mais responsivo
+# Limite de confiança para reconhecimento facial
+# Valores menores indicam maior confiança (menor distância entre rostos)
+# Este parâmetro controla a sensibilidade do reconhecimento
+LIMITE_CONFIANCA = 50
 
-# --- MODO DE DESENVOLVIMENTO ---
-# Altere para True para pular o reconhecimento facial e ir direto para o painel de Nível 3.
-# É útil para testar a interface ou cadastrar usuários quando o reconhecimento está falhando.
+# Configurações de validação para detecção de faces
+MIN_TAMANHO_ROSTO = 80                    # Tamanho mínimo do rosto detectado em pixels
+MAX_TENTATIVAS_RECONHECIMENTO = 3         # Número de reconhecimentos consecutivos necessários
+
+# Configuração de data augmentation para treinamento
+USAR_DATA_AUGMENTATION = True             # Habilita criação de variações das imagens durante o treinamento
+
+# --- Modo de Desenvolvimento ---
+# Quando ativado, pula o reconhecimento facial e abre diretamente o painel administrativo
+# Útil para testes e configuração do sistema
 MODO_DESENVOLVEDOR = False
 
 # --- Funções Auxiliares ---
+
 def remover_acentos(texto):
     """
-    Remove acentos de uma string.
-    O OpenCV pode ter problemas para exibir caracteres não-ASCII (com acentos) usando cv2.putText.
-    Esta função normaliza o texto para garantir que ele seja exibido sem erros.
+    Remove acentos e caracteres especiais de uma string.
+
+    O OpenCV pode apresentar problemas na exibição de caracteres não-ASCII
+    através da função cv2.putText. Esta função normaliza o texto utilizando
+    a forma de decomposição Unicode NFKD para garantir compatibilidade.
+
+    Args:
+        texto (str): String de entrada que pode conter acentos
+
+    Returns:
+        str: String normalizada sem acentos ou caracteres especiais
     """
     try:
         nfkd_form = unicodedata.normalize('NFKD', str(texto))
@@ -70,114 +87,168 @@ def remover_acentos(texto):
     except Exception:
         return str(texto)
 
-# --- Etapa 1: Treinamento do Modelo ---
+# --- Módulo de Treinamento do Modelo ---
 
 def obter_imagens_e_rotulos(ids_unicos):
     """
-    Prepara os dados para o treinamento com data augmentation.
-    - Percorre a pasta 'faces'.
-    - Para cada usuário, lê suas imagens.
-    - Aplica data augmentation para criar variações.
-    - Detecta o rosto em cada imagem.
-    - Associa cada rosto detectado a um rótulo numérico (0, 1, 2...).
+    Coleta e prepara as imagens de treinamento para o modelo de reconhecimento facial.
+
+    Esta função processa todas as imagens armazenadas na pasta 'faces', aplica
+    validação de qualidade, detecção de faces e data augmentation opcional.
+    Cada face detectada é associada a um rótulo numérico para o treinamento.
+
+    Args:
+        ids_unicos (list): Lista de IDs únicos dos usuários cadastrados
+
+    Returns:
+        tuple: (faces, ids, ids_treinamento) ou (None, None, None) se nenhuma face for encontrada
+            - faces: Array numpy contendo as imagens das faces processadas
+            - ids: Array numpy contendo os rótulos numéricos correspondentes
+            - ids_treinamento: Lista dos IDs na ordem de treinamento
     """
     faces, ids = [], []
-    # O treinador precisa de rótulos numéricos (0, 1, 2...). Este dicionário mapeia
-    # o ID de texto único de cada usuário para um número inteiro.
+
+    # Criação do mapeamento de IDs únicos para rótulos numéricos
+    # O algoritmo LBPH requer rótulos numéricos sequenciais (0, 1, 2, ...)
     mapeamento_ids_para_rotulo = {id_unico: i for i, id_unico in enumerate(ids_unicos)}
 
     print("Coletando imagens e rótulos para o treinamento com data augmentation...")
 
-    # Importa as funções de data augmentation
+    # Importação das funções de processamento de imagem
     from utils_admin import aplicar_data_augmentation, validar_qualidade_imagem
 
+    # Processamento das imagens de cada usuário
     for id_unico in ids_unicos:
         diretorio_pessoa = os.path.join(diretorio_de_faces, id_unico)
-        if not os.path.isdir(diretorio_pessoa): continue
+        if not os.path.isdir(diretorio_pessoa):
+            continue
 
         print(f"Processando usuário: {id_unico}")
         imagens_processadas = 0
 
+        # Iteração sobre todas as imagens do usuário
         for nome_imagem in os.listdir(diretorio_pessoa):
             if nome_imagem.lower().endswith(('.jpg', '.png', '.jpeg')):
                 caminho_imagem = os.path.join(diretorio_pessoa, nome_imagem)
-                # Carrega a imagem em escala de cinza, formato necessário para o treinamento do LBPH.
-                img = cv2.imread(caminho_imagem, cv2.IMREAD_GRAYSCALE)
-                if img is None: continue
 
-                # Valida a qualidade da imagem original
+                # Carregamento da imagem em escala de cinza (formato requerido pelo LBPH)
+                img = cv2.imread(caminho_imagem, cv2.IMREAD_GRAYSCALE)
+                if img is None:
+                    continue
+
+                # Validação da qualidade da imagem antes do processamento
                 if not validar_qualidade_imagem(img):
                     print(f"  Imagem de baixa qualidade ignorada: {nome_imagem}")
                     continue
 
-                # Detecta rostos na imagem de treinamento para garantir que apenas a face seja usada.
-                rostos_detectados = classificador_de_faces.detectMultiScale(img, 1.1, 8, minSize=(100, 100))
+                # Detecção de faces na imagem de treinamento
+                rostos_detectados = classificador_de_faces.detectMultiScale(
+                    img, 1.1, 8, minSize=(100, 100)
+                )
+
+                # Processamento do primeiro rosto detectado em cada imagem
                 for (x, y, w, h) in rostos_detectados:
-                    # Recorta a região de interesse (Region of Interest - ROI), que é o rosto.
+                    # Extração da região de interesse (ROI) contendo o rosto
                     roi = img[y:y+h, x:x+w]
-                    # Redimensiona para um tamanho padrão (200x200 pixels) para garantir consistência no treinamento.
+
+                    # Redimensionamento para tamanho padrão (200x200 pixels)
                     roi_redimensionado = cv2.resize(roi, (200, 200), interpolation=cv2.INTER_LINEAR)
 
-                    # Aplica data augmentation para criar variações da imagem
-                    imagens_aumentadas = aplicar_data_augmentation(roi_redimensionado)
-
-                    # Adiciona todas as variações ao conjunto de treinamento
-                    for img_aumentada in imagens_aumentadas:
-                        faces.append(img_aumentada)
+                    # Aplicação de data augmentation baseada na configuração
+                    if USAR_DATA_AUGMENTATION:
+                        imagens_aumentadas = aplicar_data_augmentation(roi_redimensionado)
+                        # Adição de todas as variações ao conjunto de treinamento
+                        for img_aumentada in imagens_aumentadas:
+                            faces.append(img_aumentada)
+                            ids.append(mapeamento_ids_para_rotulo[id_unico])
+                    else:
+                        # Uso apenas da imagem original para máxima performance
+                        faces.append(roi_redimensionado)
                         ids.append(mapeamento_ids_para_rotulo[id_unico])
 
                     imagens_processadas += 1
-                    break  # Usa apenas o primeiro rosto detectado por imagem
+                    break  # Processa apenas o primeiro rosto detectado por imagem
 
         print(f"  {imagens_processadas} imagens processadas para {id_unico}")
 
-    if not faces: return None, None, None
+    # Verificação se faces foram encontradas
+    if not faces:
+        return None, None, None
 
     print(f"Total de imagens para treinamento: {len(faces)}")
-    # Converte as listas para arrays numpy, que é o formato de dados que o OpenCV utiliza.
+
+    # Conversão para arrays numpy (formato requerido pelo OpenCV)
     return np.array(faces), np.array(ids), list(mapeamento_ids_para_rotulo.keys())
 
 def treinar_e_salvar_modelo():
     """
-    Orquestra o processo de treinamento e salva o modelo e o mapa de IDs no disco.
+    Executa o processo completo de treinamento do modelo de reconhecimento facial.
+
+    Esta função coordena todo o processo de treinamento: carrega os dados dos usuários,
+    processa as imagens, treina o modelo LBPH e salva os arquivos necessários para
+    posterior carregamento e uso do modelo.
+
+    Returns:
+        tuple: (reconhecedor, ids_treinamento) ou (None, None) em caso de erro
+            - reconhecedor: Instância treinada do reconhecedor LBPH
+            - ids_treinamento: Lista dos IDs na ordem de treinamento
     """
     print("Iniciando o treinamento do modelo...")
+
+    # Carregamento dos dados dos usuários
     dados_usuario = carregar_dados_json(caminho_json_dados_usuario)
     if not dados_usuario:
         print("Erro: Nenhum dado de usuário encontrado para treinar.")
         return None, None
+
+    # Extração dos IDs únicos dos usuários
     ids_unicos = [dados['id'] for dados in dados_usuario.values()]
     if not ids_unicos:
         print("Erro: Nenhum ID de pessoa encontrado para treinar.")
         return None, None
 
+    # Processamento das imagens e preparação dos dados de treinamento
     faces, ids, ids_treinamento = obter_imagens_e_rotulos(ids_unicos)
     if faces is None:
         print("Erro: Nenhuma face encontrada nas pastas para treinamento.")
         return None, None
 
-    # Cria uma instância do reconhecedor LBPH (Local Binary Patterns Histograms).
+    # Criação e treinamento do reconhecedor LBPH
     reconhecedor = cv2.face.LBPHFaceRecognizer_create()
-    # Treina o modelo com as faces e seus respectivos rótulos numéricos.
     reconhecedor.train(faces, ids)
 
-    # Garante que a pasta 'Modelo_Treinamento' exista antes de tentar salvar.
+    # Criação do diretório de modelo se não existir
     if not os.path.exists(diretorio_modelo):
         os.makedirs(diretorio_modelo)
 
-    # Salva o estado treinado do reconhecedor em um arquivo .yml.
+    # Salvamento do modelo treinado
     reconhecedor.write(caminho_modelo_salvo)
-    # Salva a lista de IDs na ordem exata em que foram treinados.
-    # Isso é crucial para depois sabermos que o rótulo '0' corresponde ao primeiro ID da lista, etc.
+
+    # Salvamento do mapeamento de IDs para correlação posterior
+    # Este arquivo é essencial para associar rótulos numéricos aos IDs únicos
     salvar_dados_json(caminho_mapa_ids, {"ids_treinamento": ids_treinamento})
 
     print("Treinamento concluído e modelo salvo com sucesso.")
     return reconhecedor, ids_treinamento
 
-# --- Etapa 2: Reconhecimento em Tempo Real ---
+# --- Módulo de Reconhecimento em Tempo Real ---
 
 def obter_nivel_e_status(cpf, dados_validacao):
-    """Verifica no arquivo validation.json qual o nível de acesso de um determinado CPF."""
+    """
+    Determina o nível de acesso e status de autorização de um usuário.
+
+    Consulta o arquivo de validação para verificar se o CPF fornecido
+    possui autorização e em qual nível de acesso.
+
+    Args:
+        cpf (str): CPF do usuário a ser verificado
+        dados_validacao (dict): Dados de validação carregados do arquivo JSON
+
+    Returns:
+        tuple: (nivel, status)
+            - nivel (str): Nível de acesso (ex: "Nivel 1", "Nivel 2", "Nivel 3")
+            - status (str): "Autorizado" ou "Não Autorizado"
+    """
     for nivel, dados in dados_validacao.items():
         if cpf in dados.get('pessoas', []):
             return nivel, "Autorizado"
@@ -185,8 +256,18 @@ def obter_nivel_e_status(cpf, dados_validacao):
 
 def reconhecer_faces_webcam(reconhecedor, ids_treinamento, dados_validacao, dados_usuario):
     """
-    Função principal que abre a webcam, detecta e reconhece faces em tempo real.
-    Versão melhorada com validações adicionais para reduzir falsos positivos.
+    Executa o reconhecimento facial em tempo real através da webcam.
+
+    Esta função implementa o loop principal de reconhecimento, capturando frames
+    da webcam, detectando faces, validando identidades e concedendo acesso
+    baseado em níveis de autorização. Inclui validações múltiplas para reduzir
+    falsos positivos e um sistema de congelamento da tela após reconhecimento.
+
+    Args:
+        reconhecedor: Modelo LBPH treinado para reconhecimento facial
+        ids_treinamento (list): Lista dos IDs na ordem de treinamento
+        dados_validacao (dict): Dados de validação de acesso por nível
+        dados_usuario (dict): Dados completos dos usuários cadastrados
     """
     captura_de_video = cv2.VideoCapture(0)
     if not captura_de_video.isOpened():
@@ -194,26 +275,30 @@ def reconhecer_faces_webcam(reconhecedor, ids_treinamento, dados_validacao, dado
         return
 
     print("Reconhecimento facial iniciado. Pressione 'q' para sair.")
-    acesso_concedido_tempo = None # Variável para controlar o timer de acesso.
-    tentativas_reconhecimento = 0  # Contador de tentativas consecutivas
-    ultimo_rosto_reconhecido = None  # Para validar consistência
 
-    # Loop infinito que lê cada frame da webcam.
+    # Variáveis de controle para validação de reconhecimento
+    acesso_concedido_tempo = None           # Controle do timer de acesso
+    tentativas_reconhecimento = 0           # Contador de tentativas consecutivas
+    ultimo_rosto_reconhecido = None         # Validação de consistência
+
+    # Loop principal de captura e processamento de frames
     while True:
         ret, frame = captura_de_video.read()
         if not ret: break
 
+        # Conversão para escala de cinza para processamento
         frame_cinza = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        # Parâmetros otimizados para detecção de rostos - balanceado entre precisão e performance
+
+        # Detecção de faces com parâmetros otimizados
         rostos_detectados = classificador_de_faces.detectMultiScale(
             frame_cinza,
-            scaleFactor=1.1,
-            minNeighbors=6,  # Balanceado para melhor performance
-            minSize=(MIN_TAMANHO_ROSTO, MIN_TAMANHO_ROSTO),  # Tamanho mínimo
-            flags=cv2.CASCADE_SCALE_IMAGE  # Otimização adicional
+            scaleFactor=1.1,                                    # Fator de escala para detecção
+            minNeighbors=6,                                     # Número mínimo de vizinhos para confirmação
+            minSize=(MIN_TAMANHO_ROSTO, MIN_TAMANHO_ROSTO),     # Tamanho mínimo do rosto
+            flags=cv2.CASCADE_SCALE_IMAGE                       # Otimização de performance
         )
 
-        # Se nenhum rosto for detectado no frame, reseta os contadores.
+        # Reset dos contadores quando nenhum rosto é detectado
         if len(rostos_detectados) == 0:
             acesso_concedido_tempo = None
             tentativas_reconhecimento = 0
@@ -261,26 +346,36 @@ def reconhecer_faces_webcam(reconhecedor, ids_treinamento, dados_validacao, dado
 
                     # Lógica do timer de acesso com validação de tentativas
                     if status == "Autorizado" and tentativas_reconhecimento >= MAX_TENTATIVAS_RECONHECIMENTO:
-                        if acesso_concedido_tempo is None:
-                            acesso_concedido_tempo = time.time() # Inicia o timer na primeira detecção válida.
-                            print(f"Rosto reconhecido: {nome_completo} - Iniciando timer de acesso...")
+                        print(f"Rosto reconhecido: {nome_completo} - Congelando tela por 2 segundos...")
 
-                        # Teste com 3 segundos para dar mais tempo de validação
-                        if time.time() - acesso_concedido_tempo >= 3: # Se o usuário autorizado for visto por 3 segundos...
-                            print(f"Acesso concedido para: {nome_completo}")
-                            captura_de_video.release()
-                            cv2.destroyAllWindows()
-                            mostrar_documentos(nivel) # Abre a interface de documentos.
-                            return # Encerra a função de reconhecimento.
-                        else:
-                            tempo_restante = 3 - int(time.time() - acesso_concedido_tempo)
-                            texto_timer = f"Acesso em {tempo_restante}s..."
-                            cv2.putText(frame, texto_timer, (x, y+h+20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                        # Congela a tela por 2 segundos com o temporizador
+                        frame_congelado = frame.copy()
 
-                            # Mostra frame com timer e para o loop de reconhecimento
-                            cv2.imshow('Reconhecimento Facial', frame)
-                            cv2.waitKey(1)
-                            continue  # Pula para o próximo frame sem processar outros rostos
+                        # Adiciona informações do usuário ao frame congelado
+                        cv2.rectangle(frame_congelado, (x, y), (x+w, y+h), (0, 255, 0), 3)
+                        cv2.putText(frame_congelado, texto_nome, (x, y-65), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+                        cv2.putText(frame_congelado, texto_status, (x, y-40), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                        cv2.putText(frame_congelado, texto_confianca, (x, y-15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+
+                        # Loop de 2 segundos mostrando o temporizador
+                        tempo_inicio = time.time()
+                        while time.time() - tempo_inicio < 2:
+                            tempo_restante = 2 - int(time.time() - tempo_inicio)
+                            if tempo_restante > 0:
+                                texto_timer = f"Acesso em {tempo_restante}s..."
+                                # Cria uma cópia do frame para não sobrescrever
+                                frame_timer = frame_congelado.copy()
+                                cv2.putText(frame_timer, texto_timer, (x, y+h+20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                                cv2.imshow('Reconhecimento Facial', frame_timer)
+                                cv2.waitKey(100)  # Atualiza a cada 100ms
+                            else:
+                                break
+
+                        print(f"Acesso concedido para: {nome_completo}")
+                        captura_de_video.release()
+                        cv2.destroyAllWindows()
+                        mostrar_documentos(nivel) # Abre a interface de documentos.
+                        return # Encerra a função de reconhecimento.
 
                     elif status == "Autorizado":
                         # Mostra que está validando
@@ -304,28 +399,28 @@ def reconhecer_faces_webcam(reconhecedor, ids_treinamento, dados_validacao, dado
     cv2.destroyAllWindows()
     sys.exit()
 
-# --- Bloco Principal de Execução (com Modo de Desenvolvimento) ---
-# Este bloco é o ponto de entrada quando o script é executado.
+# --- Bloco Principal de Execução ---
+# Ponto de entrada do sistema quando o script é executado diretamente
 if __name__ == "__main__":
 
-    # --- Modo de Desenvolvimento ---
+    # Verificação do modo de desenvolvimento
     if MODO_DESENVOLVEDOR:
-        # Se a variável estiver como True, pula todo o processo de reconhecimento.
         print("="*40)
         print("MODO DE DESENVOLVIMENTO ATIVADO")
         print("Pulando reconhecimento facial e abrindo o painel de Nível 3.")
         print("="*40)
         mostrar_documentos("Nivel 3")
     else:
-        # Se estiver como False, executa o fluxo normal do programa.
+        # Carregamento dos dados de validação e usuários
         dados_validacao = carregar_dados_json(caminho_json_validacao)
         dados_usuario = carregar_dados_json(caminho_json_dados_usuario)
 
+        # Verificação da existência de usuários cadastrados
         if not dados_usuario:
             print("Nenhum usuário cadastrado. Execute o `cadastro_app.py` para adicionar usuários.")
             sys.exit()
 
-        # --- LÓGICA DE CARREGAMENTO OU TREINAMENTO DO MODELO ---
+        # Lógica de carregamento ou treinamento do modelo
         if os.path.exists(caminho_modelo_salvo) and os.path.exists(caminho_mapa_ids):
             print("Carregando modelo de reconhecimento facial existente...")
             reconhecedor = cv2.face.LBPHFaceRecognizer_create()
@@ -337,7 +432,7 @@ if __name__ == "__main__":
             print("Nenhum modelo treinado encontrado. Iniciando novo treinamento...")
             reconhecedor, ids_treinamento = treinar_e_salvar_modelo()
 
-        # Inicia o reconhecimento com o modelo (seja ele carregado ou recém-treinado).
+        # Inicialização do reconhecimento facial
         if reconhecedor and ids_treinamento:
             reconhecer_faces_webcam(reconhecedor, ids_treinamento, dados_validacao, dados_usuario)
         else:

@@ -1,34 +1,39 @@
-# Módulo Central de Utilitários e Administração
+# Módulo Central de Utilitários e Administração do Sistema de Reconhecimento Facial
 #
-# Propósito: Este arquivo serve como o "cérebro" para todas as operações de gerenciamento
-# de usuários e manipulação de dados do projeto. Centralizar essas funções aqui permite
-# que outros scripts (app.py, document_viewer.py) as utilizem sem duplicar código,
-# tornando o projeto mais limpo, organizado e fácil de manter.
+# Este módulo centraliza todas as operações de gerenciamento de usuários, manipulação
+# de dados e processamento de imagens do sistema. Funciona como uma biblioteca de
+# funções utilitárias que são utilizadas pelos demais módulos do projeto, garantindo
+# consistência e evitando duplicação de código.
+#
+# Funcionalidades principais:
+# - Gerenciamento de dados JSON (usuários e validação)
+# - Captura e processamento de imagens faciais
+# - Data augmentation para treinamento do modelo
+# - Validação de qualidade de imagens
+# - Interface administrativa para gerenciamento de usuários
 
-# --- Importação das Bibliotecas Necessárias ---
-import os                   # Para interagir com o sistema operacional (criar pastas, verificar caminhos).
-import json                 # Para manipular arquivos no formato JSON (ler e escrever dados).
-import shutil               # Usado para operações de alto nível em arquivos, como remover uma pasta inteira.
-import tkinter as tk        # A biblioteca padrão do Python para criar interfaces gráficas.
-from tkinter import messagebox, simpledialog, ttk  # Módulos específicos do tkinter para caixas de diálogo simples.
-import uuid                 # Para gerar identificadores únicos universais (usados para as pastas de fotos).
-import cv2                  # A biblioteca OpenCV, essencial para a câmera e processamento de imagem.
-import sys                  # Para interações com o sistema (atualmente não usado, mas bom para futuras expansões).
-import numpy as np          # Biblioteca para computação numérica, usada aqui para criar o efeito de "flash".
-import random               # Para geração de números aleatórios no data augmentation.
+# --- Importação das Bibliotecas ---
+import os                   # Módulo para operações do sistema de arquivos e diretórios
+import json                 # Módulo para serialização e deserialização de dados JSON
+import shutil               # Módulo para operações avançadas de arquivos e diretórios
+import tkinter as tk        # Biblioteca padrão para criação de interfaces gráficas
+from tkinter import messagebox, simpledialog, ttk  # Componentes específicos do tkinter para diálogos
+import uuid                 # Módulo para geração de identificadores únicos universais
+import cv2                  # OpenCV para processamento de imagens e visão computacional
+import sys                  # Módulo para interação com o interpretador Python
+import numpy as np          # Biblioteca para computação numérica e manipulação de arrays
+import random               # Módulo para geração de números aleatórios
 
-# --- Configuração de Caminhos Globais ---
-# Define o diretório base do projeto de forma dinâmica. Isso garante que o programa
-# encontre seus arquivos, não importa de onde ele seja executado.
+# --- Configuração de Caminhos do Sistema ---
+# Define o diretório base do projeto de forma dinâmica para garantir portabilidade
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
-# Define os caminhos para as pastas importantes do projeto.
-diretorio_de_faces = os.path.join(base_dir, 'faces')
-diretorio_modelo = os.path.join(base_dir, 'Modelo_Treinamento')
-diretorio_usuarios = os.path.join(base_dir, 'Usuarios_Cadastrados')
+# Definição dos diretórios principais do sistema
+diretorio_de_faces = os.path.join(base_dir, 'faces')                    # Pasta contendo as imagens de treinamento
+diretorio_modelo = os.path.join(base_dir, 'Modelo_Treinamento')         # Pasta para armazenar o modelo treinado
+diretorio_usuarios = os.path.join(base_dir, 'Usuarios_Cadastrados')     # Pasta com dados dos usuários
 
-# Define os caminhos completos para os arquivos que o programa usará.
-# 'os.path.join' constrói os caminhos de forma segura para qualquer sistema operacional.
+# Caminhos específicos para arquivos de dados e configuração
 caminho_modelo_salvo = os.path.join(diretorio_modelo, 'modelo_lbph.yml')
 caminho_mapa_ids = os.path.join(diretorio_modelo, 'mapeamento_ids.json')
 caminho_json_validacao = os.path.join(diretorio_usuarios, 'validation.json')
@@ -282,44 +287,48 @@ def criar_dialogo_confirmacao(titulo, mensagem):
 
     return resultado[0]
 
-# --- Funções de Data Augmentation ---
+# --- Módulo de Data Augmentation ---
 
 def aplicar_data_augmentation(imagem):
     """
-    Aplica transformações de data augmentation otimizadas para melhorar o treinamento.
-    Cria variações da imagem original para aumentar a robustez do modelo.
-    Versão otimizada para melhor performance.
+    Aplica transformações de data augmentation para aumentar a diversidade do dataset.
+
+    Esta função cria variações controladas da imagem original através de ajustes
+    de brilho e contraste, melhorando a robustez do modelo de reconhecimento
+    facial sem comprometer significativamente a performance.
+
+    Args:
+        imagem (numpy.ndarray): Imagem em escala de cinza para processamento
+
+    Returns:
+        list: Lista contendo a imagem original e suas variações
     """
     imagens_aumentadas = [imagem]  # Inclui a imagem original
 
-    # 1. Rotação leve (apenas 2 ângulos para otimizar)
-    for angulo in [-3, 3]:
-        h, w = imagem.shape[:2]
-        centro = (w // 2, h // 2)
-        matriz_rotacao = cv2.getRotationMatrix2D(centro, angulo, 1.0)
-        imagem_rotacionada = cv2.warpAffine(imagem, matriz_rotacao, (w, h))
-        imagens_aumentadas.append(imagem_rotacionada)
-
-    # 2. Brilho ajustado (apenas 1 variação)
-    imagem_brilho = cv2.convertScaleAbs(imagem, alpha=1.1, beta=0)
+    # Criação de variações essenciais para treinamento robusto
+    # Variação de brilho: aumento sutil para simular diferentes iluminações
+    imagem_brilho = cv2.convertScaleAbs(imagem, alpha=1.05, beta=0)
     imagens_aumentadas.append(imagem_brilho)
 
-    # 3. Contraste ajustado (apenas 1 variação)
-    imagem_contraste = cv2.convertScaleAbs(imagem, alpha=0.95, beta=0)
+    # Variação de contraste: redução sutil para simular condições de luz variáveis
+    imagem_contraste = cv2.convertScaleAbs(imagem, alpha=0.98, beta=0)
     imagens_aumentadas.append(imagem_contraste)
-
-    # 4. Ruído gaussiano leve (reduzido)
-    ruido = np.random.normal(0, 5, imagem.shape).astype(np.uint8)
-    imagem_ruido = cv2.add(imagem, ruido)
-    imagens_aumentadas.append(imagem_ruido)
 
     return imagens_aumentadas
 
 def validar_qualidade_imagem(imagem):
     """
-    Valida se a imagem tem qualidade suficiente para treinamento.
-    Versão otimizada para melhor performance.
-    Retorna True se a imagem for adequada, False caso contrário.
+    Valida a qualidade de uma imagem para uso no treinamento do modelo.
+
+    Esta função implementa verificações de qualidade baseadas em brilho,
+    contraste e detecção de faces para garantir que apenas imagens
+    adequadas sejam utilizadas no treinamento do modelo.
+
+    Args:
+        imagem (numpy.ndarray): Imagem em escala de cinza para validação
+
+    Returns:
+        bool: True se a imagem atende aos critérios de qualidade, False caso contrário
     """
     # Verifica se a imagem não está muito escura ou clara (otimizado)
     brilho_medio = np.mean(imagem)
@@ -355,14 +364,22 @@ def invalidar_modelo_treinado():
 
 def carregar_dados_json(caminho_arquivo):
     """
-    Função segura para carregar dados de um arquivo JSON.
-    Retorna o dicionário de dados ou um dicionário vazio em caso de erro ou se o arquivo não existir.
+    Carrega dados de um arquivo JSON de forma segura.
+
+    Esta função implementa tratamento de erros robusto para carregamento
+    de arquivos JSON, retornando um dicionário vazio em caso de falha
+    ou arquivo inexistente.
+
+    Args:
+        caminho_arquivo (str): Caminho completo para o arquivo JSON
+
+    Returns:
+        dict: Dados carregados do arquivo ou dicionário vazio em caso de erro
     """
     if not os.path.exists(caminho_arquivo):
         return {}
     try:
-        # 'with open(...)' garante que o arquivo seja fechado corretamente após a leitura.
-        # 'encoding="utf-8"' é crucial para ler caracteres com acentuação.
+        # Carregamento seguro com encoding UTF-8 para suporte a caracteres especiais
         with open(caminho_arquivo, 'r', encoding='utf-8') as f:
             return json.load(f)
     except Exception as e:
@@ -371,18 +388,24 @@ def carregar_dados_json(caminho_arquivo):
 
 def salvar_dados_json(caminho_arquivo, dados):
     """
-    Função segura para salvar dados em um arquivo JSON, garantindo que o diretório de destino exista.
+    Salva dados em um arquivo JSON de forma segura.
+
+    Esta função garante que o diretório de destino exista antes de salvar
+    e implementa tratamento de erros robusto para operações de escrita.
+
+    Args:
+        caminho_arquivo (str): Caminho completo para o arquivo JSON de destino
+        dados (dict): Dicionário contendo os dados a serem salvos
+
+    Returns:
+        bool: True se a operação foi bem-sucedida, False caso contrário
     """
     try:
-        # Garante que o diretório ('Usuarios_Cadastrados') exista. Se não, ele é criado.
-        # 'exist_ok=True' evita que um erro seja lançado se a pasta já existir.
+        # Criação do diretório de destino se não existir
         os.makedirs(diretorio_usuarios, exist_ok=True)
 
-        # O modo 'w' (write) abre o arquivo para escrita, substituindo o conteúdo antigo.
+        # Salvamento com formatação legível e suporte a caracteres especiais
         with open(caminho_arquivo, 'w', encoding='utf-8') as f:
-            # 'json.dump' escreve o dicionário 'dados' no arquivo 'f'.
-            # 'indent=2' formata o arquivo para ser facilmente lido por humanos.
-            # 'ensure_ascii=False' permite a escrita de caracteres acentuados.
             json.dump(dados, f, indent=2, ensure_ascii=False)
         return True
     except Exception as e:
@@ -393,7 +416,18 @@ def salvar_dados_json(caminho_arquivo, dados):
 
 def tirar_e_salvar_fotos(id_unico, cpf_usuario="novo_usuario"):
     """
-    Abre a webcam, captura um número definido de fotos com feedback visual e salva na pasta do usuário.
+    Captura fotos faciais através da webcam para treinamento do modelo.
+
+    Esta função implementa uma interface interativa para captura de fotos
+    faciais, incluindo feedback visual, validação de qualidade e orientações
+    para o usuário. As fotos são salvas na pasta específica do usuário.
+
+    Args:
+        id_unico (str): Identificador único do usuário
+        cpf_usuario (str): CPF do usuário para exibição (padrão: "novo_usuario")
+
+    Returns:
+        int: Número de fotos capturadas com sucesso
     """
     # Carrega o classificador Haar Cascade, o modelo pré-treinado do OpenCV para detectar faces.
     classificador_de_faces = cv2.CascadeClassifier(face_cascade_path)
@@ -617,6 +651,104 @@ def adicionar_mais_fotos():
         invalidar_modelo_treinado()
     else:
         messagebox.showinfo("Cancelado", "Nenhuma foto nova foi adicionada.")
+
+def gerenciar_fotos_usuario():
+    """Interface para gerenciar fotos de um usuário específico."""
+    cpf = simpledialog.askstring("Gerenciar Fotos", "Digite o CPF do usuário:")
+    if not cpf: return
+    dados_usuario = carregar_dados_json(caminho_json_dados_usuario)
+    if cpf not in dados_usuario:
+        messagebox.showerror("Erro", "CPF não encontrado.")
+        return
+
+    nome_usuario = dados_usuario[cpf]['nome']
+    id_unico = dados_usuario[cpf]['id']
+    caminho_pasta_pessoa = os.path.join(diretorio_de_faces, id_unico)
+
+    if not os.path.exists(caminho_pasta_pessoa):
+        messagebox.showerror("Erro", "Pasta de fotos não encontrada.")
+        return
+
+    # Lista todas as fotos do usuário
+    fotos = [f for f in os.listdir(caminho_pasta_pessoa) if f.lower().endswith(('.jpg', '.png', '.jpeg'))]
+
+    if not fotos:
+        messagebox.showinfo("Info", f"Nenhuma foto encontrada para {nome_usuario}.")
+        return
+
+    # Mostra informações e opções
+    mensagem = f"Usuário: {nome_usuario} (CPF: {cpf})\n"
+    mensagem += f"Total de fotos: {len(fotos)}\n\n"
+    mensagem += "Opções:\n"
+    mensagem += "1. Adicionar mais fotos\n"
+    mensagem += "2. Remover fotos antigas (manter apenas as 30 mais recentes)\n"
+    mensagem += "3. Remover fotos antigas (manter apenas as 10 mais recentes)\n"
+    mensagem += "4. Remover fotos antigas (manter apenas as 5 mais recentes)\n"
+    mensagem += "5. Cancelar"
+
+    opcao = simpledialog.askstring("Gerenciar Fotos", mensagem + "\n\nDigite o número da opção (1-5):")
+
+    if opcao == "1":
+        adicionar_mais_fotos()
+    elif opcao == "2":
+        manter_apenas_fotos_recentes(caminho_pasta_pessoa, fotos, 30, nome_usuario)
+    elif opcao == "3":
+        manter_apenas_fotos_recentes(caminho_pasta_pessoa, fotos, 10, nome_usuario)
+    elif opcao == "4":
+        manter_apenas_fotos_recentes(caminho_pasta_pessoa, fotos, 5, nome_usuario)
+    elif opcao == "5":
+        return
+    else:
+        messagebox.showwarning("Aviso", "Opção inválida.")
+
+def manter_apenas_fotos_recentes(caminho_pasta, fotos, quantidade, nome_usuario):
+    """Mantém apenas as N fotos mais recentes de um usuário."""
+    if len(fotos) <= quantidade:
+        messagebox.showinfo("Info", f"{nome_usuario} já tem apenas {len(fotos)} fotos.")
+        return
+
+    # Ordena as fotos por data de modificação (mais recentes primeiro)
+    # A data de modificação corresponde ao tempo de inserção/criação da foto
+    fotos_com_data = []
+    for foto in fotos:
+        caminho_foto = os.path.join(caminho_pasta, foto)
+        data_modificacao = os.path.getmtime(caminho_foto)
+        fotos_com_data.append((foto, data_modificacao))
+
+    fotos_com_data.sort(key=lambda x: x[1], reverse=True)  # Mais recentes primeiro
+
+    # Mostra informações sobre as fotos que serão mantidas e removidas
+    import datetime
+    fotos_para_manter = fotos_com_data[:quantidade]
+    fotos_para_remover = fotos_com_data[quantidade:]
+
+    # Mostra a foto mais antiga que será mantida e a mais recente que será removida
+    if fotos_para_manter and fotos_para_remover:
+        foto_mais_antiga_mantida = fotos_para_manter[-1]
+        foto_mais_recente_removida = fotos_para_remover[0]
+
+        data_antiga = datetime.datetime.fromtimestamp(foto_mais_antiga_mantida[1]).strftime("%d/%m/%Y %H:%M")
+        data_recente = datetime.datetime.fromtimestamp(foto_mais_recente_removida[1]).strftime("%d/%m/%Y %H:%M")
+
+        print(f"Foto mais antiga mantida: {foto_mais_antiga_mantida[0]} ({data_antiga})")
+        print(f"Foto mais recente removida: {foto_mais_recente_removida[0]} ({data_recente})")
+
+    # Remove as fotos mais antigas
+    fotos_removidas = 0
+
+    for foto, _ in fotos_para_remover:
+        caminho_foto = os.path.join(caminho_pasta, foto)
+        try:
+            os.remove(caminho_foto)
+            fotos_removidas += 1
+        except Exception as e:
+            print(f"Erro ao remover {foto}: {e}")
+
+    if fotos_removidas > 0:
+        messagebox.showinfo("Sucesso", f"Removidas {fotos_removidas} fotos antigas de {nome_usuario}.\nMantidas as {quantidade} fotos mais recentes.\n\nAs fotos são ordenadas pelo tempo de inserção.")
+        invalidar_modelo_treinado()
+    else:
+        messagebox.showwarning("Aviso", "Nenhuma foto foi removida.")
 
 def excluir_usuario():
     """Interface para excluir um usuário do sistema."""

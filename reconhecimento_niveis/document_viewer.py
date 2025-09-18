@@ -1,13 +1,22 @@
-# Este script cria a interface gráfica para exibir documentos e, para usuários de Nível 3,
-# fornece acesso às ferramentas de administração, que são importadas do módulo de utilidades.
+# Interface Gráfica para Visualização de Documentos e Administração do Sistema
+#
+# Este módulo implementa a interface gráfica principal do sistema de reconhecimento
+# facial, fornecendo acesso a documentos baseado em níveis de autorização e
+# ferramentas administrativas para usuários de Nível 3.
+#
+# Funcionalidades:
+# - Visualização de documentos por nível de acesso
+# - Interface administrativa para gerenciamento de usuários
+# - Design moderno e responsivo
+# - Controle de acesso baseado em níveis
 
 import tkinter as tk
 from tkinter import scrolledtext, ttk
 import os
 
-# --- IMPORTAÇÃO DAS FUNÇÕES CENTRALIZADAS ---
-# Em vez de reescrever as funções, as importa diretamente do arquivo de utilidades.
-from utils_admin import criar_novo_usuario_via_gui, adicionar_mais_fotos, excluir_usuario
+# --- Importação das Funções Administrativas ---
+# Importação das funções centralizadas do módulo de utilitários
+from utils_admin import criar_novo_usuario_via_gui, adicionar_mais_fotos, excluir_usuario, gerenciar_fotos_usuario
 
 # --- Configuração de Caminhos ---
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -16,8 +25,14 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 
 def abrir_arquivo(caminho_arquivo):
     """
-    Abre uma nova janela Toplevel para exibir o conteúdo de um arquivo de texto.
-    Esta função é específica para a interface gráfica e permanece neste arquivo.
+    Abre uma janela modal para exibir o conteúdo de um arquivo de texto.
+
+    Esta função cria uma interface gráfica para visualização de documentos,
+    implementando um design moderno com barra de título estilizada e
+    área de conteúdo com scroll para arquivos longos.
+
+    Args:
+        caminho_arquivo (str): Caminho completo para o arquivo a ser exibido
     """
     janela_arquivo = tk.Toplevel()
     janela_arquivo.title(f"📄 {os.path.basename(caminho_arquivo)}")
@@ -70,8 +85,15 @@ def abrir_arquivo(caminho_arquivo):
 
 def mostrar_documentos(nivel_acesso):
     """
-    Cria a interface principal que exibe os documentos com base no nível de acesso do usuário.
-    Para o Nível 3, adiciona botões que chamam as funções de administração importadas.
+    Cria a interface principal do sistema de visualização de documentos.
+
+    Esta função implementa a interface gráfica principal que exibe documentos
+    baseados no nível de acesso do usuário e fornece ferramentas administrativas
+    para usuários de Nível 3. A interface utiliza design moderno com cores
+    diferenciadas por nível de acesso.
+
+    Args:
+        nivel_acesso (str): Nível de acesso do usuário ("Nivel 1", "Nivel 2", "Nivel 3")
     """
     janela = tk.Tk()
     janela.title("🔐 Sistema de Controle de Acesso - Visualizador de Documentos")
@@ -216,6 +238,14 @@ def mostrar_documentos(nivel_acesso):
                                        activebackground='#2980b9', activeforeground='white',
                                        cursor='hand2')
         btn_adicionar_fotos.pack(side=tk.LEFT, expand=True, padx=5)
+
+        btn_gerenciar_fotos = tk.Button(buttons_frame, text="⚙️ Gerenciar Fotos",
+                                       command=gerenciar_fotos_usuario,
+                                       font=("Segoe UI", 10, "bold"), bg='#f39c12', fg='white',
+                                       relief='flat', bd=0, padx=15, pady=10,
+                                       activebackground='#e67e22', activeforeground='white',
+                                       cursor='hand2')
+        btn_gerenciar_fotos.pack(side=tk.LEFT, expand=True, padx=5)
 
         btn_excluir_usuario = tk.Button(buttons_frame, text="🗑️ Excluir Usuário",
                                        command=excluir_usuario,
